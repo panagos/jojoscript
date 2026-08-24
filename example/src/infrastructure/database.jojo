@@ -1,0 +1,70 @@
+import sqlite3 from "sqlite3"
+
+export function createDatabase() {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(":memory:", (err) => {
+      if (err) {
+        reject(err)
+        return
+      }
+
+      db.exec(
+        `
+          CREATE TABLE posts (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL
+          )
+        `,
+        (execErr) => {
+          if (execErr) {
+            reject(execErr)
+            return
+          }
+
+          resolve(db)
+        }
+      )
+    })
+  })
+}
+
+export function runAsync(db, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) {
+        reject(err)
+        return
+      }
+
+      resolve(this)
+    })
+  })
+}
+
+export function allAsync(db, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err)
+        return
+      }
+
+      resolve(rows ?? [])
+    })
+  })
+}
+
+export function closeAsync(db) {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        reject(err)
+        return
+      }
+
+      resolve()
+    })
+  })
+}

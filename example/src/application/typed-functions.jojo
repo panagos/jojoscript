@@ -1,0 +1,17 @@
+/*
+ * Optional type annotations are stripped from the emitted JavaScript and
+ * re-expressed as a JSDoc block, so editors/tools that understand JSDoc
+ * get parameter and return type information without JojoScript needing
+ * its own type checker.
+ */
+
+export fn add(a: number, b: number): number = a + b
+
+export fn formatPrice(amount: number, currency: string = "USD"): string = `${currency} ${amount.toFixed(2)}`
+
+export fn isAdult(age: number): boolean = age >= 18
+
+export async fn loadUserName(id: number, repository: object): Promise<string> {
+  user := await repository.findById(id)
+  return user.name
+}

@@ -1,0 +1,21 @@
+import { createPost } from "../domain/post.js"
+
+export class HttpPostSource {
+  constructor(url) {
+    this.url = url
+  }
+
+  async fetchPosts() {
+    const response = await fetch(this.url)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    return data
+      |> map(createPost)
+      |> toArray
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "jojoscript-language",
+  "displayName": "JojoScript Language Support",
+  "description": "Syntax highlighting and a document formatter for JojoScript (.jojo) files.",
+  "version": "0.1.0",
+  "publisher": "jojoscript",
+  "license": "Unlicense",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:jojoscript"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jojoscript",
+        "aliases": [
+          "JojoScript",
+          "jojoscript"
+        ],
+        "extensions": [
+          ".jojo"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jojoscript",
+        "scopeName": "source.jojo",
+        "path": "./syntaxes/jojoscript.tmLanguage.json"
+      }
+    ]
+  }
+}

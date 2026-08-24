@@ -1,0 +1,66 @@
+/*
+ * Small, focused examples exercising compiler edge cases that are easy to
+ * run into in real code: pipelines used as call/array/object arguments,
+ * pipelines as concise arrow function bodies, expression functions with a
+ * default parameter that calls another function, expression functions with
+ * a trailing comment, jojo-like syntax safely embedded in a template
+ * literal, and a dynamic import of a local module.
+ */
+
+fn pluralize(word) = word + "s"
+
+// Default parameter values may call another function.
+fn describeCount(count, noun = pluralize("item")) = `${count} ${noun}` // e.g. "3 items"
+
+// A pipeline can be passed directly as a call argument.
+export function logTopTags(posts) {
+  console.log(
+    posts
+      |> flatMap(post => post.tags ?? [])
+      |> unique
+      |> take(3)
+      |> toArray
+  )
+}
+
+// A pipeline can be one of several array elements.
+export function buildTagBuckets(posts, extra) {
+  return [
+    posts |> flatMap(post => post.tags ?? []) |> unique |> toArray,
+    extra
+  ]
+}
+
+// A pipeline can be an object literal property value.
+export function buildTagReport(posts) {
+  return {
+    total: posts.length,
+    tags: posts
+      |> flatMap(post => post.tags ?? [])
+      |> unique
+      |> toArray
+  }
+}
+
+// A pipeline can be the concise (braceless) body of an arrow function.
+export const summarizeTitles = posts =>
+  posts
+    |> map(post => post.title)
+    |> toArray
+
+// jojo declaration syntax inside a template literal is left untouched,
+// since it belongs to the string, not the surrounding code. Handy for
+// generators/tools that print jojo code samples.
+export function jojoSyntaxSample() {
+  return `
+    total := 0
+    mutable count := 0
+  `
+}
+
+export { describeCount }
+
+export async function loadGreeting(name) {
+  const { greet } = await import("./greeting")
+  return greet(name)
+}

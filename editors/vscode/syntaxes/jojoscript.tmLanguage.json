@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "JojoScript",
+  "scopeName": "source.jojo",
+  "patterns": [
+    { "include": "#jojo-function-signature" },
+    { "include": "#jojo-mutable" },
+    { "include": "#jojo-match-keyword" },
+    { "include": "#jojo-declaration-operator" },
+    { "include": "#jojo-pipeline-operator" },
+    { "include": "#jojo-placeholder" },
+    { "include": "source.js" }
+  ],
+  "repository": {
+    "jojo-mutable": {
+      "match": "\\bmutable\\b",
+      "name": "storage.modifier.jojo"
+    },
+    "jojo-match-keyword": {
+      "comment": "`match <expr> { ... }` expression keyword, distinguished from `foo.match(...)`",
+      "match": "(?<![.\\w$])\\bmatch\\b(?=\\s)",
+      "name": "keyword.control.match.jojo"
+    },
+    "jojo-declaration-operator": {
+      "comment": "Immutable/mutable declaration operator, e.g. `users := getUsers()`",
+      "match": ":=",
+      "name": "keyword.operator.declaration.jojo"
+    },
+    "jojo-pipeline-operator": {
+      "comment": "Pipeline stage operator, e.g. `users |> filter(isAdult)`",
+      "match": "\\|>",
+      "name": "keyword.operator.pipeline.jojo"
+    },
+    "jojo-placeholder": {
+      "comment": "The `_` pipeline placeholder argument, e.g. `divide(100, _)`",
+      "match": "(?<=[(,]\\s*)_(?=\\s*[,)])",
+      "name": "variable.language.placeholder.jojo"
+    },
+    "jojo-function-signature": {
+      "comment": "`fn name(params): ReturnType {` / `fn name(params): ReturnType = expr` — scopes optional type annotations to the signature only, so ordinary object literals elsewhere are never mistaken for type annotations.",
+      "begin": "\\b(async\\s+)?(fn)\\b(\\s+([A-Za-z_$][\\w$]*))?",
+      "beginCaptures": {
+        "1": { "name": "storage.modifier.async.jojo" },
+        "2": { "name": "storage.type.function.jojo" },
+        "4": { "name": "entity.name.function.jojo" }
+      },
+      "end": "(?=\\{|=(?![=>]))",
+      "name": "meta.function.signature.jojo",
+      "patterns": [
+        {
+          "comment": "Return type annotation after the closing `)`, e.g. `): number`",
+          "match": "(\\))\\s*(:)\\s*([A-Za-z_$][\\w$.<>\\[\\]]*)",
+          "captures": {
+            "1": { "name": "punctuation.definition.parameters.end.jojo" },
+            "2": { "name": "punctuation.separator.annotation.jojo" },
+            "3": { "name": "entity.name.type.jojo" }
+          }
+        },
+        {
+          "comment": "Parameter type annotation, e.g. `a: number`",
+          "match": "([A-Za-z_$][\\w$]*)\\s*(:)\\s*([A-Za-z_$][\\w$.<>\\[\\]]*)",
+          "captures": {
+            "1": { "name": "variable.parameter.jojo" },
+            "2": { "name": "punctuation.separator.annotation.jojo" },
+            "3": { "name": "entity.name.type.jojo" }
+          }
+        },
+        { "include": "source.js" }
+      ]
+    }
+  }
+}

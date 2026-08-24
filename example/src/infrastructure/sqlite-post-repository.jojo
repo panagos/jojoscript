@@ -1,0 +1,76 @@
+import { runAsync, allAsync } from "./database.js"
+import { createPost } from "../domain/post.js"
+
+export class SqlitePostRepository {
+  constructor(db) {
+    this.db = db
+  }
+
+  async save(post) {
+    await runAsync(
+      this.db,
+      `
+        INSERT OR REPLACE INTO posts (id, user_id, title, body)
+        VALUES (?, ?, ?, ?)
+      `,
+      [post.id, post.userId, post.title, post.body]
+    )
+
+    return post
+  }
+
+  async saveMany(posts) {
+    await runAsync(this.db, "BEGIN TRANSACTION")
+
+    try {
+      for (const post of posts) {
+        await this.save(post)
+      }
+
+      await runAsync(this.db, "COMMIT")
+    } catch (error) {
+      await runAsync(this.db, "ROLLBACK")
+      throw error
+    }
+  }
+
+  async findAll() {
+    rows := await allAsync(
+      this.db,
+      `
+        SELECT
+          id,
+          user_id AS userId,
+          title,
+          body
+        FROM posts
+        ORDER BY id
+      `
+    )
+
+    return rows
+      |> map(createPost)
+      |> toArray
+  }
+
+  async findByUserId(userId) {
+    rows := await allAsync(
+      this.db,
+      `
+        SELECT
+          id,
+          user_id AS userId,
+          title,
+          body
+        FROM posts
+        WHERE user_id = ?
+        ORDER BY id
+      `,
+      [userId]
+    )
+
+    return rows
+      |> map(createPost)
+      |> toArray
+  }
+}

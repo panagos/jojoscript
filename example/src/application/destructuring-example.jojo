@@ -1,0 +1,37 @@
+/*
+ * Destructuring declarations:
+ *   { a, b } := getUser()
+ *   [head, ...rest] := items
+ *   mutable { count } := state
+ *
+ * and tuple/multi-binding declarations:
+ *   a, b := 1, 2
+ */
+
+export function summarizeUser(user) {
+  { id, name, roles } := user
+
+  return `#${id} ${name} (${roles.join(', ')})`
+}
+
+export function firstAndRest(items) {
+  [head, ...rest] := items
+
+  return { head, rest }
+}
+
+export function swap(a, b) {
+  mutable x, y := a, b
+  temp := x
+  x = y
+  y = temp
+
+  return [x, y]
+}
+
+export function pointDistance(a, b) {
+  { x: ax, y: ay } := a
+  { x: bx, y: by } := b
+
+  return Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2)
+}

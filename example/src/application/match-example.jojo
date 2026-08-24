@@ -1,0 +1,34 @@
+/*
+ * `match` is a value-equality expression construct: it compares a subject
+ * against each pattern with `===`, in order, and requires a default `_`
+ * arm.
+ */
+
+export function httpStatusLabel(status) {
+  return match status {
+    200 => "OK",
+    201 => "Created",
+    404 => "Not Found",
+    500 => "Internal Server Error",
+    _ => `Unhandled status ${status}`
+  }
+}
+
+export function classifyPostLength(post) {
+  category := match true {
+    post.body.length > 200 => "long",
+    post.body.length > 50 => "medium",
+    _ => "short"
+  }
+
+  return { id: post.id, category }
+}
+
+export function describeUserRole(role) {
+  return match role {
+    "admin" => "Full access",
+    "editor" => "Can edit and publish",
+    "viewer" => "Read-only access",
+    _ => "Unknown role"
+  }
+}

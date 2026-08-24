@@ -1,0 +1,56 @@
+/*
+ * Additional collection runtime stages: `groupBy`, `partition`, `chunk`,
+ * `window`, `zip`, `scan`, `sortBy`, `distinctBy`, and `tap`.
+ */
+
+export function groupPostsByUser(posts) {
+  return posts |> groupBy(post => post.userId)
+}
+
+export function splitByPublished(posts) {
+  return posts |> partition(post => post.published)
+}
+
+export function pageify(posts, pageSize) {
+  return posts
+    |> chunk(pageSize)
+    |> toArray
+}
+
+export function movingAverages(values, size) {
+  return values
+    |> window(size)
+    |> map(group => group.reduce((sum, value) => sum + value, 0) / group.length)
+    |> toArray
+}
+
+export function pairTitlesWithIds(posts) {
+  ids := posts |> map(post => post.id) |> toArray
+
+  titles := posts |> map(post => post.title) |> toArray
+
+  return ids |> zip(titles) |> toArray
+}
+
+export function runningWordCount(posts) {
+  return posts
+    |> map(post => post.body.split(/\s+/).filter(Boolean).length)
+    |> scan((total, count) => total + count, 0)
+    |> toArray
+}
+
+export function postsSortedByTitle(posts) {
+  return posts |> sortBy(post => post.title)
+}
+
+export function uniquePostsByUser(posts) {
+  return posts
+    |> distinctBy(post => post.userId)
+    |> toArray
+}
+
+export function loggedPosts(posts, logger) {
+  return posts
+    |> tap(post => logger(post.id))
+    |> toArray
+}

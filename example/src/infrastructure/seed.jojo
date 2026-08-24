@@ -1,0 +1,4 @@
+export async function seedPosts(source, repository) {
+  const posts = await source.fetchPosts()
+  await repository.saveMany(posts)
+}

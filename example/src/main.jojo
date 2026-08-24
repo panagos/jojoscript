@@ -1,0 +1,112 @@
+import { createDatabase, closeAsync } from "./infrastructure/database.js"
+import { seedPosts } from "./infrastructure/seed.js"
+import { SqlitePostRepository } from "./infrastructure/sqlite-post-repository.js"
+import { PostService } from "./application/post-service.js"
+import { HttpPostSource } from "./infrastructure/http-post-source.js"
+
+import { declarationExample } from "./application/declaration-example.js"
+import { summarizeUser, firstAndRest, swap, pointDistance } from "./application/destructuring-example.js"
+import { httpStatusLabel, classifyPostLength, describeUserRole } from "./application/match-example.js"
+import { add, formatPrice, isAdult } from "./application/typed-functions.js"
+import { subtractFromBudget } from "./application/pipeline-placeholder-example.js"
+import { parseConfigValue, safeDivide } from "./application/pipeline-error-handling-example.js"
+import {
+  groupPostsByUser,
+  splitByPublished,
+  pageify,
+  postsSortedByTitle,
+  uniquePostsByUser,
+  pairTitlesWithIds
+} from "./application/collection-extras.js"
+
+db := await createDatabase()
+source := new HttpPostSource("https://jsonplaceholder.typicode.com/posts")
+repository := new SqlitePostRepository(db)
+service := new PostService(repository)
+
+await seedPosts(source, repository)
+
+posts := await service.getAllPosts()
+report := buildReport(posts)
+
+console.log(JSON.stringify(report, null, 2))
+
+printFeatureShowcase(posts)
+
+await closeAsync(db)
+
+function printFeatureShowcase(posts) {
+  console.log("\n--- Feature showcase ---")
+
+  console.log("declarations: mutable reassigned from const ->", declarationExample())
+  console.log("destructuring: summarizeUser ->", summarizeUser({ id: 1, name: "Ada", roles: ["admin"] }))
+  console.log("destructuring: firstAndRest ->", firstAndRest([1, 2, 3]))
+  console.log("destructuring: swap ->", swap(1, 2))
+  console.log("destructuring: pointDistance ->", pointDistance({ x: 0, y: 0 }, { x: 3, y: 4 }))
+
+  console.log("match: httpStatusLabel(404) ->", httpStatusLabel(404))
+  console.log("match: describeUserRole(\"editor\") ->", describeUserRole("editor"))
+  console.log("match: classifyPostLength ->", classifyPostLength(posts[0]).category)
+
+  console.log("typed function: add(2, 3) ->", add(2, 3))
+  console.log("typed function: formatPrice(9.5) ->", formatPrice(9.5))
+  console.log("typed function: isAdult(16) ->", isAdult(16))
+
+  console.log("pipeline placeholder: subtractFromBudget(30, 100) ->", subtractFromBudget(30, 100))
+  console.log("pipeline orElse: parseConfigValue(\"not json\") ->", parseConfigValue("not json"))
+  console.log("pipeline catch: safeDivide(1, 0) ->", safeDivide(1, 0))
+
+  console.log("collection groupBy: users ->", [...groupPostsByUser(posts).keys()])
+  console.log("collection partition: [published, drafts] sizes ->", splitByPublished(posts).map(group => group.length))
+  console.log("collection chunk: page count ->", pageify(posts, 10).length)
+  console.log("collection sortBy: first title ->", postsSortedByTitle(posts)[0]?.title)
+  console.log("collection distinctBy: unique users ->", uniquePostsByUser(posts).length)
+  console.log("collection zip: first pair ->", pairTitlesWithIds(posts)[0])
+}
+
+
+function buildReport(posts) {
+  grouped := groupByUser(posts)
+
+  users :=
+    Object.entries(grouped)
+      |> map(toUserSummary)
+      |> sort((a, b) => b.posts - a.posts)
+      |> toArray
+
+  return {
+    totalPosts: posts.length,
+    users
+  }
+}
+
+function groupByUser(posts) {
+  return posts.reduce((groups, post) => {
+    groups[post.userId] ??= []
+    groups[post.userId].push(post)
+    return groups
+  }, {})
+}
+
+function toUserSummary(entry) {
+  userId := Number(entry[0])
+  posts := entry[1]
+
+  return {
+    userId,
+    posts: posts.length,
+    longestTitle: longestTitle(posts)
+  }
+}
+
+function longestTitle(posts) {
+  return posts
+    |> map(post => post.title)
+    |> reduce(longest, "")
+}
+
+function longest(current, candidate) {
+  return candidate.length > current.length
+    ? candidate
+    : current
+}

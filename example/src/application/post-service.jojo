@@ -1,0 +1,22 @@
+import { isLongPost } from "../domain/post.js"
+
+export class PostService {
+  constructor(repository) {
+    this.repository = repository
+  }
+
+  async getAllPosts() {
+    return await this.repository.findAll()
+  }
+
+  async getLongPosts(minimumLength = 100) {
+    return await this.repository
+      .findAll()
+      |> filter(post => isLongPost(post, minimumLength))
+      |> toArray
+  }
+
+  async getPostsByUser(userId) {
+    return await this.repository.findByUserId(userId)
+  }
+}

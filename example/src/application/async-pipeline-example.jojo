@@ -1,0 +1,22 @@
+/*
+ * Async pipeline stages: `mapAsync` and `filterAsync` are async-generator
+ * based lazy stages, `toArrayAsync` is the async terminal, and the
+ * `await` pipeline stage unwraps the resulting promise so the whole
+ * chain still reads as a single pipeline.
+ */
+
+export async function loadUserNames(ids, repository) {
+  return ids
+    |> mapAsync(id => repository.findById(id))
+    |> mapAsync(user => user.name)
+    |> toArrayAsync
+    |> await
+}
+
+export async function loadActiveUsers(ids, repository) {
+  return ids
+    |> mapAsync(id => repository.findById(id))
+    |> filterAsync(user => user.active)
+    |> toArrayAsync
+    |> await
+}

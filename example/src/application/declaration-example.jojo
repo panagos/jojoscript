@@ -1,0 +1,7 @@
+value := 10
+mutable counter := 0
+
+export function declarationExample() {
+  counter = value
+  return counter
+}

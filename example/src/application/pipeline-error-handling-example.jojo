@@ -1,0 +1,25 @@
+/*
+ * The `catch` and `orElse` pipeline stages provide inline error handling
+ * without leaving pipeline syntax:
+ *
+ *   risky() |> catch(handler)     // handler(error) becomes the result
+ *   risky() |> orElse(fallback)   // fallback becomes the result
+ */
+
+export function parseConfigValue(raw) {
+  return raw
+    |> JSON.parse
+    |> orElse(null)
+}
+
+export function safeDivide(a, b) {
+  return compute(a, b)
+    |> catch(error => ({ error: error.message }))
+}
+
+function compute(a, b) {
+  if (b === 0) {
+    throw new Error("Division by zero")
+  }
+  return a / b
+}

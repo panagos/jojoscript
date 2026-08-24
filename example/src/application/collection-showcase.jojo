@@ -1,0 +1,85 @@
+import {
+  map,
+  filter,
+  sort,
+  unique,
+  take,
+  skip,
+  flatMap,
+  reduce,
+  toArray,
+  count,
+  first,
+  find,
+  some,
+  every
+} from "jojoscript/runtime"
+
+/*
+ * A deliberately practical showcase of the complete collection runtime.
+ *
+ * The functions are composed around an iterable of posts, so the
+ * intermediate stages stay lazy until a terminal operation is needed.
+ */
+
+export function buildCollectionReport(posts) {
+  total := count(posts)
+
+  published := posts
+    |> filter(post => post.published)
+
+  publishedCount := count(published)
+
+  titles := posts
+    |> map(post => post.title.trim())
+    |> unique()
+    |> sort((a, b) => a.localeCompare(b))
+    |> toArray()
+
+  newest := posts
+    |> sort((a, b) => b.id - a.id)
+    |> first()
+
+  requested := posts
+    |> find(post => post.id === 3)
+
+  topTitles := posts
+    |> sort((a, b) => a.title.localeCompare(b.title))
+    |> skip(1)
+    |> take(3)
+    |> map(post => post.title)
+    |> toArray()
+
+  allTags := posts
+    |> flatMap(post => post.tags ?? [])
+    |> unique()
+    |> sort((a, b) => a.localeCompare(b))
+    |> toArray()
+
+  wordCount := posts
+    |> map(post => post.body.split(/\s+/).filter(Boolean).length)
+    |> reduce((total, words) => total + words, 0)
+
+  hasLongPost := some(
+    posts,
+    post => post.body.length > 200
+  )
+
+  allHaveTitles := every(
+    posts,
+    post => typeof post.title === "string" && post.title.length > 0
+  )
+
+  return {
+    total,
+    publishedCount,
+    titles,
+    newest,
+    requested,
+    topTitles,
+    allTags,
+    wordCount,
+    hasLongPost,
+    allHaveTitles
+  }
+}
