@@ -114,7 +114,7 @@ test('compiler imports iterator stdlib stages', () => {
   `)
 
   assert.ok(!result.includes('|>'))
-  assert.match(result, /import \{[^}]*filter[^}]*map[^}]*take[^}]*reduce[^}]*\} from "jojoscript\/runtime"/s)
+  assert.match(result, /import \{[^}]*filter[^}]*map[^}]*take[^}]*reduce[^}]*\} from "@panagos\/jojoscript\/runtime"/s)
 })
 
 test('compiler supports toArray terminal', () => {

@@ -1,4 +1,4 @@
-# JojoScript 0.7.0
+# JojoScript 0.7.1
 
 JojoScript is a deliberately small source-to-source language that adds a
 handful of ergonomic constructs on top of JavaScript while keeping ordinary
@@ -13,7 +13,7 @@ every feature described below.
 ## Install
 
 ```bash
-npm install jojoscript
+npm install @panagos/jojoscript
 ```
 
 ## CLI
@@ -252,11 +252,11 @@ return ids
 ```
 
 `await`, `catch`, and `orElse` are resolved at compile time and are never
-added to the automatic `jojoscript/runtime` import.
+added to the automatic `@panagos/jojoscript/runtime` import.
 
 ### Standard pipeline runtime
 
-The following pipeline stages are supplied by `jojoscript/runtime`. The
+The following pipeline stages are supplied by `@panagos/jojoscript/runtime`. The
 compiler automatically generates only the runtime imports that are actually
 used through pipeline syntax (custom/user-defined stages are never
 auto-imported):
@@ -336,12 +336,12 @@ import axios from "axios"
 Generated JavaScript imports the runtime using the package subpath:
 
 ```js
-import { map, take } from "jojoscript/runtime"
+import { map, take } from "@panagos/jojoscript/runtime"
 ```
 
 The package exposes this through `package.json` `exports`, so consumers
 install `jojoscript` as a normal dependency. If a file both manually imports
-from `jojoscript/runtime` (for a stage that's only ever called directly,
+from `@panagos/jojoscript/runtime` (for a stage that's only ever called directly,
 never through `|>`) and also uses pipeline syntax with overlapping names,
 the compiler merges the auto-imported names into the existing import
 instead of emitting a second, colliding import declaration.

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.7.1 — Fix runtime import path after publishing under a scoped name
+
+### Compiler
+
+- Fixed the auto-generated pipeline runtime import (`import { map, ... } from "jojoscript/runtime"`) being hardcoded to the unscoped literal `jojoscript`, which broke once the package was published as `@panagos/jojoscript`. The import specifier is now derived from the package's own `package.json` name at compile time, so it always matches however the package is actually installed.
+
 ## 0.7.0 — `zipWith` lazy stage
 
 ### Runtime

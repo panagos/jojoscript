@@ -65,6 +65,6 @@ test('await, catch and orElse are never imported from the runtime', () => {
 
 test('catch can be combined with regular stdlib stages', () => {
   const result = compile('result := getUsers() |> map(normalize) |> catch(() => [])')
-  assert.match(result, /import \{ map \} from "jojoscript\/runtime"/)
+  assert.match(result, /import \{ map \} from "@panagos\/jojoscript\/runtime"/)
   assert.match(result, /try \{ return \(map\(getUsers\(\), normalize\)\) \}/)
 })

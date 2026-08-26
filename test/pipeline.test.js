@@ -149,7 +149,7 @@ test('pipeline does not consume previous statement', () => {
 
 test('pipeline stdlib import is generated', () => {
   const result = compile(`users |> map(normalize) |> take(5)`)
-  assert.match(result, /import \{ map, take \} from "jojoscript\/runtime"/)
+  assert.match(result, /import \{ map, take \} from "@panagos\/jojoscript\/runtime"/)
 })
 
 test('custom pipeline stages are not imported', () => {

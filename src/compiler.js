@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import {
   transformPipelines,
@@ -19,7 +20,17 @@ import {
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
 
-const JOJO_RUNTIME = 'jojoscript/runtime'
+/*
+ * The auto-generated runtime import must use whatever name this package is
+ * actually installed under (e.g. a scoped fork like "@me/jojoscript"), not a
+ * hardcoded literal, so it's derived from this package's own package.json
+ * instead of being hardcoded.
+ */
+const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
+const OWN_PACKAGE_NAME = JSON.parse(
+  fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8')
+).name
+const JOJO_RUNTIME = `${OWN_PACKAGE_NAME}/runtime`
 
 export function compile(source) {
   let result = source
@@ -81,7 +92,13 @@ export function compile(source) {
   return result.endsWith('\n') ? result : result + '\n'
 }
 
-const RUNTIME_IMPORT_PATTERN = /import\s*\{([^}]*)\}\s*from\s*(["'])jojoscript\/runtime\2/
+const RUNTIME_IMPORT_PATTERN = new RegExp(
+  `import\\s*\\{([^}]*)\\}\\s*from\\s*(["'])${escapeRegExp(JOJO_RUNTIME)}\\2`
+)
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 function mergeRuntimeImport(source, stdlibFunctions) {
   const existing = source.match(RUNTIME_IMPORT_PATTERN)
