@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.7.0 — `zipWith` lazy stage
+
+### Runtime
+
+- Added the lazy stage `zipWith`, like `zip` but combining corresponding elements with an arity-2 combining function instead of yielding `[a, b]` pairs. Neither source is materialized, so both may be infinite/lazy.
+
 ### Editor
 
 - Added a VS Code extension under `editors/vscode` providing syntax highlighting (`:=`, `mutable`, `fn`, `match`, `|>`, `_` placeholder, type annotations, layered on top of full JavaScript highlighting) and a `Format Document` provider that reindents based on brace/bracket/paren nesting, `|>` continuations, and multi-line `:=` right-hand sides.

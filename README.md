@@ -1,4 +1,4 @@
-# JojoScript 0.6.0
+# JojoScript 0.7.0
 
 JojoScript is a deliberately small source-to-source language that adds a
 handful of ergonomic constructs on top of JavaScript while keeping ordinary
@@ -274,6 +274,7 @@ auto-imported):
 | `chunk` | lazy | Group items into fixed-size arrays |
 | `window` | lazy | Yield a sliding view of size N |
 | `zip` | lazy | Pair items from two iterables, stopping at the shorter one |
+| `zipWith` | lazy | Combine items from two iterables with an arity-2 combining function, stopping at the shorter one |
 | `scan` | lazy | Yield a running accumulation (like `reduce`, but yields every step) |
 | `mapAsync` | lazy, async | Like `map`, awaiting an async transform |
 | `filterAsync` | lazy, async | Like `filter`, awaiting an async predicate |
@@ -366,7 +367,7 @@ npm test
 
 Collection pipeline stages are lazy by default. `map`, `filter`, `take`,
 `skip`, `unique`, `flatMap`, `distinctBy`, `tap`, `chunk`, `window`, `zip`,
-`scan`, `mapAsync`, and `filterAsync` return iterators (or async iterators)
+`zipWith`, `scan`, `mapAsync`, and `filterAsync` return iterators (or async iterators)
 instead of allocating an intermediate array. Use `toArray`/`toArrayAsync`
 when an array is actually required.
 
