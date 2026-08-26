@@ -7,6 +7,7 @@ import {
   chunk,
   window,
   zip,
+  zipWith,
   scan,
   sortBy,
   distinctBy,
@@ -14,7 +15,8 @@ import {
   mapAsync,
   filterAsync,
   toArrayAsync,
-  toArray
+  toArray,
+  take
 } from '../src/runtime/collections.js'
 
 test('groupBy groups items by a key function', () => {
@@ -48,6 +50,29 @@ test('window yields a sliding view over the input', () => {
 
 test('zip pairs elements from two iterables and stops at the shorter one', () => {
   assert.deepEqual(toArray(zip([1, 2, 3], ['a', 'b'])), [[1, 'a'], [2, 'b']])
+})
+
+test('zipWith combines elements from two iterables with an arity-2 function', () => {
+  assert.deepEqual(
+    toArray(zipWith([1, 2, 3], [10, 20], (a, b) => a + b)),
+    [11, 22]
+  )
+})
+
+test('zipWith never materializes either infinite/lazy source', () => {
+  function* naturals() {
+    let n = 0
+    while (true) yield n++
+  }
+
+  function* letters() {
+    const alphabet = 'abcdefghij'
+    let i = 0
+    while (true) yield alphabet[i++ % alphabet.length]
+  }
+
+  const result = zipWith(naturals(), letters(), (n, letter) => `${letter}${n}`)
+  assert.deepEqual(toArray(take(result, 3)), ['a0', 'b1', 'c2'])
 })
 
 test('scan yields a running accumulation', () => {
