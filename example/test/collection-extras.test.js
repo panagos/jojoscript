@@ -7,6 +7,7 @@ import {
   pageify,
   movingAverages,
   pairTitlesWithIds,
+  labelTitlesWithIds,
   runningWordCount,
   postsSortedByTitle,
   uniquePostsByUser,
@@ -47,6 +48,14 @@ test("zip pairs ids with titles", () => {
     [1, "Beta"],
     [2, "Alpha"],
     [3, "Gamma"]
+  ])
+})
+
+test("zipWith combines ids with titles using an arity-2 function", () => {
+  assert.deepEqual(labelTitlesWithIds(posts), [
+    "1: Beta",
+    "2: Alpha",
+    "3: Gamma"
   ])
 })
 

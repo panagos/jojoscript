@@ -1,6 +1,6 @@
 /*
  * Additional collection runtime stages: `groupBy`, `partition`, `chunk`,
- * `window`, `zip`, `scan`, `sortBy`, `distinctBy`, and `tap`.
+ * `window`, `zip`, `zipWith`, `scan`, `sortBy`, `distinctBy`, and `tap`.
  */
 
 export function groupPostsByUser(posts) {
@@ -30,6 +30,16 @@ export function pairTitlesWithIds(posts) {
   titles := posts |> map(post => post.title) |> toArray
 
   return ids |> zip(titles) |> toArray
+}
+
+export function labelTitlesWithIds(posts) {
+  ids := posts |> map(post => post.id) |> toArray
+
+  titles := posts |> map(post => post.title) |> toArray
+
+  return ids
+    |> zipWith(titles, (id, title) => `${id}: ${title}`)
+    |> toArray
 }
 
 export function runningWordCount(posts) {

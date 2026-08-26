@@ -29,7 +29,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/pipeline-placeholder-example.jojo` | Pipeline `_` placeholder | Controls where the piped value lands in a stage's arguments |
 | `application/pipeline-error-handling-example.jojo` | Pipeline `catch` / `orElse` | Inline error handling without leaving pipeline syntax |
 | `application/async-pipeline-example.jojo` | `mapAsync` / `filterAsync` / `toArrayAsync` / `\|> await` | Async iterator pipelines |
-| `application/collection-extras.jojo` | `groupBy`, `partition`, `chunk`, `window`, `zip`, `scan`, `sortBy`, `distinctBy`, `tap` | Additional collection runtime stages |
+| `application/collection-extras.jojo` | `groupBy`, `partition`, `chunk`, `window`, `zip`, `zipWith`, `scan`, `sortBy`, `distinctBy`, `tap` | Additional collection runtime stages |
 | `application/collection-showcase.jojo` | Core collection runtime | See table below |
 | `application/language-edge-cases.jojo` | Compiler edge cases | Pipelines as arguments/array/object values, expression fns, dynamic import |
 | `application/greeting.jojo` / `post-service.jojo` / `domain/post.jojo` / `infrastructure/**` | The actual application | Fetch, persist and report on posts |

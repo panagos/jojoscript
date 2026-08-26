@@ -16,7 +16,8 @@ import {
   pageify,
   postsSortedByTitle,
   uniquePostsByUser,
-  pairTitlesWithIds
+  pairTitlesWithIds,
+  labelTitlesWithIds
 } from "./application/collection-extras.js"
 
 db := await createDatabase()
@@ -35,7 +36,7 @@ printFeatureShowcase(posts)
 
 await closeAsync(db)
 
-function printFeatureShowcase(posts) {
+fn printFeatureShowcase(posts: posts) {
   console.log("\n--- Feature showcase ---")
 
   console.log("declarations: mutable reassigned from const ->", declarationExample())
@@ -62,10 +63,11 @@ function printFeatureShowcase(posts) {
   console.log("collection sortBy: first title ->", postsSortedByTitle(posts)[0]?.title)
   console.log("collection distinctBy: unique users ->", uniquePostsByUser(posts).length)
   console.log("collection zip: first pair ->", pairTitlesWithIds(posts)[0])
+  console.log("collection zipWith: first label ->", labelTitlesWithIds(posts)[0])
 }
 
 
-function buildReport(posts) {
+fn buildReport(posts) {
   grouped := groupByUser(posts)
 
   users :=
@@ -80,7 +82,7 @@ function buildReport(posts) {
   }
 }
 
-function groupByUser(posts) {
+fn groupByUser(posts) {
   return posts.reduce((groups, post) => {
     groups[post.userId] ??= []
     groups[post.userId].push(post)
@@ -88,7 +90,7 @@ function groupByUser(posts) {
   }, {})
 }
 
-function toUserSummary(entry) {
+fn toUserSummary(entry) {
   userId := Number(entry[0])
   posts := entry[1]
 
@@ -99,13 +101,13 @@ function toUserSummary(entry) {
   }
 }
 
-function longestTitle(posts) {
+fn longestTitle(posts) {
   return posts
     |> map(post => post.title)
     |> reduce(longest, "")
 }
 
-function longest(current, candidate) {
+fn longest(current, candidate) {
   return candidate.length > current.length
     ? candidate
     : current
