@@ -1,28 +1,59 @@
 {
-  "name": "jojoscript",
+  "name": "@panagos/jojoscript",
   "version": "0.7.0",
   "description": "A tiny JavaScript-compatible language layer with Jojo syntax and pipelines.",
   "license": "Unlicense",
   "type": "module",
+
   "bin": {
     "jojo": "./bin/jojo.js"
   },
+
   "exports": {
-    ".": "./src/index.js",
-    "./runtime": "./src/runtime/index.js"
+    ".": {
+      "import": "./src/index.js"
+    },
+    "./runtime": {
+      "import": "./src/runtime/index.js"
+    }
   },
+
   "files": [
     "bin/",
     "src/",
     "README.md",
     "LICENSE"
   ],
+
   "engines": {
     "node": ">=18"
   },
+
   "scripts": {
     "test": "node --test test/*.test.js",
     "build:example": "npm --prefix example install && npm --prefix example run build",
     "run:example": "npm --prefix example run start"
-  }
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panagos/jojoscript.git"
+  },
+
+  "homepage": "https://github.com/panagos/jojoscript",
+
+  "bugs": {
+    "url": "https://github.com/panagos/jojoscript/issues"
+  },
+
+  "keywords": [
+    "jojoscript",
+    "javascript",
+    "language",
+    "compiler",
+    "pipeline",
+    "functional-programming",
+    "iterators",
+    "lazy-iteration"
+  ]
 }
