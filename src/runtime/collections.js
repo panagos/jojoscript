@@ -253,6 +253,20 @@ export function zip(items, other) {
   })()
 }
 
+export function zipWith(items, other, fn) {
+  return (function* () {
+    const left = iterable(items)[Symbol.iterator]()
+    const right = iterable(other)[Symbol.iterator]()
+
+    while (true) {
+      const a = left.next()
+      const b = right.next()
+      if (a.done || b.done) return
+      yield fn(a.value, b.value)
+    }
+  })()
+}
+
 export function scan(items, fn, initial) {
   return (function* () {
     let accumulator = initial

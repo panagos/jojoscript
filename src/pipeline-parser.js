@@ -24,6 +24,7 @@ const PIPELINE_STDLIB = new Set([
   'chunk',
   'window',
   'zip',
+  'zipWith',
   'scan',
   'sortBy',
   'distinctBy',

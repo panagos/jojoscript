@@ -18,6 +18,7 @@ export {
   chunk,
   window,
   zip,
+  zipWith,
   scan,
   sortBy,
   distinctBy,
