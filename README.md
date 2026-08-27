@@ -1,10 +1,12 @@
 # JojoScript 0.8.0
 
-JojoScript is a deliberately small source-to-source language that adds a
-handful of ergonomic constructs on top of JavaScript while keeping ordinary
-JavaScript valid. The compiler is a regex/token-based transpiler (not a full
-AST), so it stays tiny and every feature composes with plain JavaScript
-around it.
+JojoScript is a small JavaScript-compatible language and runtime for
+expressive, composable pipelines. It adds lightweight syntax for declarations,
+functions, pattern matching, type annotations, and pipelines while preserving
+ordinary JavaScript. Its compiler uses a lightweight lexer and source
+transformations rather than a full AST, keeping the toolchain compact. The
+project also provides lazy and async collection operators, checkpointing,
+retries, metrics, pipeline graphing, CLI workflows, and VS Code editor support.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and
 [example/](example/) for a complete runnable application that exercises
