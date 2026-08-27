@@ -1,4 +1,4 @@
-# JojoScript 0.7.1
+# JojoScript 0.8.0
 
 JojoScript is a deliberately small source-to-source language that adds a
 handful of ergonomic constructs on top of JavaScript while keeping ordinary
@@ -21,6 +21,11 @@ npm install @panagos/jojoscript
 ```bash
 jojo build <file.jojo|directory> [--out <directory>] [--watch]
 jojo run <file.jojo> [--out <directory>]
+jojo graph <file.jojo> [--format text|dot]
+jojo profile <file.jojo>
+jojo resume <file.jojo> [--out <directory>]
+jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
+jojo test <file.jojo>
 jojo --version
 jojo --help
 ```
@@ -28,6 +33,10 @@ jojo --help
 - `jojo build src` compiles every `.jojo` file under `src` to `src/dist/*.js` (or `--out <dir>`).
 - `jojo build src --watch` rebuilds whenever a `.jojo` file under `src` changes.
 - `jojo run app.jojo` compiles a single file and immediately runs it with Node — useful for a fast dev loop.
+- `jojo graph app.jojo` prints a static pipeline graph; use `--format dot` for Graphviz output.
+- `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
+- `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
+- `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
 - Compiler and filesystem errors are reported as a single friendly line (`jojo: <message>`, exit code 1) instead of a raw stack trace. Unknown flags are rejected.
 
 ## Language features

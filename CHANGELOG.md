@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 0.8.0 — Dataflow execution, observability, and CLI workflows
+
+### Runtime
+
+- Added checkpoint persistence with memory and file-backed stores, including
+	resume and replay-from-checkpoint behavior.
+- Added `retry`, `inspect`, `traceNode`, `parallel`, and `batch` runtime
+	operators, with structured pipeline errors, execution contexts, metrics, and
+	inspection reports.
+- Added async-aware collection execution for checkpointed and instrumented
+	pipelines while preserving lazy iteration.
+
+### Compiler
+
+- Added stable pipeline hashing and static pipeline graph generation for
+	execution-free inspection.
+- Added compiler metadata for pipeline IDs, node IDs, checkpoint ordering, and
+	runtime observability.
+- Fixed pipeline parsing across consecutive statements and continued member
+	calls.
+
+### CLI
+
+- Added `jojo graph <file.jojo> [--format text|dot]`.
+- Added `jojo profile <file.jojo>` for per-node metrics.
+- Added `jojo resume <file.jojo>` and `jojo replay <file.jojo> --from <checkpoint>`.
+- Added `jojo test <file.jojo>` for compiling a file and running a co-located
+	JavaScript test.
+- Made the CLI executable and portable when running compiled files outside the
+	package directory.
+
+### Examples and tooling
+
+- Converted example function declarations to `fn`/`async fn` syntax.
+- Added a deterministic `example/dataflow` fixture covering graph, profile,
+	run, resume, replay, and test workflows.
+- Expanded VS Code language support for current JojoScript syntax and document
+	formatting.
+
 ## 0.7.1 — Fix runtime import path after publishing under a scoped name
 
 ### Compiler
