@@ -3,28 +3,28 @@
  * `window`, `zip`, `zipWith`, `scan`, `sortBy`, `distinctBy`, and `tap`.
  */
 
-export function groupPostsByUser(posts) {
+export fn groupPostsByUser(posts) {
   return posts |> groupBy(post => post.userId)
 }
 
-export function splitByPublished(posts) {
+export fn splitByPublished(posts) {
   return posts |> partition(post => post.published)
 }
 
-export function pageify(posts, pageSize) {
+export fn pageify(posts, pageSize) {
   return posts
     |> chunk(pageSize)
     |> toArray
 }
 
-export function movingAverages(values, size) {
+export fn movingAverages(values, size) {
   return values
     |> window(size)
     |> map(group => group.reduce((sum, value) => sum + value, 0) / group.length)
     |> toArray
 }
 
-export function pairTitlesWithIds(posts) {
+export fn pairTitlesWithIds(posts) {
   ids := posts |> map(post => post.id) |> toArray
 
   titles := posts |> map(post => post.title) |> toArray
@@ -32,7 +32,7 @@ export function pairTitlesWithIds(posts) {
   return ids |> zip(titles) |> toArray
 }
 
-export function labelTitlesWithIds(posts) {
+export fn labelTitlesWithIds(posts) {
   ids := posts |> map(post => post.id) |> toArray
 
   titles := posts |> map(post => post.title) |> toArray
@@ -42,24 +42,24 @@ export function labelTitlesWithIds(posts) {
     |> toArray
 }
 
-export function runningWordCount(posts) {
+export fn runningWordCount(posts) {
   return posts
     |> map(post => post.body.split(/\s+/).filter(Boolean).length)
     |> scan((total, count) => total + count, 0)
     |> toArray
 }
 
-export function postsSortedByTitle(posts) {
+export fn postsSortedByTitle(posts) {
   return posts |> sortBy(post => post.title)
 }
 
-export function uniquePostsByUser(posts) {
+export fn uniquePostsByUser(posts) {
   return posts
     |> distinctBy(post => post.userId)
     |> toArray
 }
 
-export function loggedPosts(posts, logger) {
+export fn loggedPosts(posts, logger) {
   return posts
     |> tap(post => logger(post.id))
     |> toArray

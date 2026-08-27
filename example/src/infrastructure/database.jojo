@@ -1,6 +1,6 @@
 import sqlite3 from "sqlite3"
 
-export function createDatabase() {
+export fn createDatabase() {
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(":memory:", (err) => {
       if (err) {
@@ -30,20 +30,20 @@ export function createDatabase() {
   })
 }
 
-export function runAsync(db, sql, params = []) {
+export fn runAsync(db, sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
+    db.run(sql, params, (err) => {
       if (err) {
         reject(err)
         return
       }
 
-      resolve(this)
+      resolve(db)
     })
   })
 }
 
-export function allAsync(db, sql, params = []) {
+export fn allAsync(db, sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
       if (err) {
@@ -56,7 +56,7 @@ export function allAsync(db, sql, params = []) {
   })
 }
 
-export function closeAsync(db) {
+export fn closeAsync(db) {
   return new Promise((resolve, reject) => {
     db.close((err) => {
       if (err) {

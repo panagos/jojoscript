@@ -59,3 +59,31 @@ collection runtime:
 The example deliberately uses pipelines so the runtime operations are composed
 as iterator transformations rather than manually allocating intermediate arrays.
 
+## Dataflow CLI examples
+
+The [`dataflow/`](dataflow/) directory is a small deterministic fixture for the
+dataflow commands. Run these commands from that directory after installing the
+project dependencies:
+
+```bash
+cd dataflow
+
+# Inspect the pipeline without executing it.
+jojo graph dataflow-example.jojo
+jojo graph dataflow-example.jojo --format dot
+
+# Execute it with per-node metrics, or create/reuse its checkpoint.
+jojo profile dataflow-example.jojo
+jojo run dataflow-example.jojo
+jojo resume dataflow-example.jojo
+jojo replay dataflow-example.jojo --from filtered
+
+# Compile the file and run its co-located JavaScript test.
+jojo test dataflow-example.jojo
+```
+
+The pipeline prints `[20,40,60]`. `resume` reuses the `filtered` checkpoint
+created by `run`; `replay --from filtered` explicitly starts from that same
+checkpoint. Checkpoints are stored in `.jojo-checkpoints/` in the current
+directory and can be removed to reset the demo.
+

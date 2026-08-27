@@ -13,7 +13,7 @@ fn pluralize(word) = word + "s"
 fn describeCount(count, noun = pluralize("item")) = `${count} ${noun}` // e.g. "3 items"
 
 // A pipeline can be passed directly as a call argument.
-export function logTopTags(posts) {
+export fn logTopTags(posts) {
   console.log(
     posts
       |> flatMap(post => post.tags ?? [])
@@ -24,7 +24,7 @@ export function logTopTags(posts) {
 }
 
 // A pipeline can be one of several array elements.
-export function buildTagBuckets(posts, extra) {
+export fn buildTagBuckets(posts, extra) {
   return [
     posts |> flatMap(post => post.tags ?? []) |> unique |> toArray,
     extra
@@ -32,7 +32,7 @@ export function buildTagBuckets(posts, extra) {
 }
 
 // A pipeline can be an object literal property value.
-export function buildTagReport(posts) {
+export fn buildTagReport(posts) {
   return {
     total: posts.length,
     tags: posts
@@ -51,7 +51,7 @@ export const summarizeTitles = posts =>
 // jojo declaration syntax inside a template literal is left untouched,
 // since it belongs to the string, not the surrounding code. Handy for
 // generators/tools that print jojo code samples.
-export function jojoSyntaxSample() {
+export fn jojoSyntaxSample() {
   return `
     total := 0
     mutable count := 0
@@ -60,7 +60,7 @@ export function jojoSyntaxSample() {
 
 export { describeCount }
 
-export async function loadGreeting(name) {
+export async fn loadGreeting(name) {
   const { greet } = await import("./greeting")
   return greet(name)
 }

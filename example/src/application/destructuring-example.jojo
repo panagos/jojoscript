@@ -8,19 +8,19 @@
  *   a, b := 1, 2
  */
 
-export function summarizeUser(user) {
+export fn summarizeUser(user) {
   { id, name, roles } := user
 
   return `#${id} ${name} (${roles.join(', ')})`
 }
 
-export function firstAndRest(items) {
+export fn firstAndRest(items) {
   [head, ...rest] := items
 
   return { head, rest }
 }
 
-export function swap(a, b) {
+export fn swap(a, b) {
   mutable x, y := a, b
   temp := x
   x = y
@@ -29,7 +29,7 @@ export function swap(a, b) {
   return [x, y]
 }
 
-export function pointDistance(a, b) {
+export fn pointDistance(a, b) {
   { x: ax, y: ay } := a
   { x: bx, y: by } := b
 

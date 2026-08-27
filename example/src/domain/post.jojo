@@ -1,4 +1,4 @@
-export function createPost({ id, userId, title, body }) {
+export fn createPost({ id, userId, title, body }) {
   if (!Number.isInteger(id) || id <= 0) {
     throw new Error("Post id must be a positive integer")
   }
@@ -23,6 +23,6 @@ export function createPost({ id, userId, title, body }) {
   }
 }
 
-export function isLongPost(post, minimumLength = 100) {
+export fn isLongPost(post, minimumLength = 100) {
   return post.body.length >= minimumLength
 }

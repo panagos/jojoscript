@@ -3,22 +3,22 @@
  * stage's argument list, instead of always being the first argument.
  */
 
-export function percentageOf(value, total) {
+export fn percentageOf(value, total) {
   return value / total * 100
 }
 
-export function toPercentageOfTotal(values, total) {
+export fn toPercentageOfTotal(values, total) {
   return values
     |> map(value => percentageOf(value, total))
     |> toArray
 }
 
-export function subtractFromBudget(spend, budget) {
+export fn subtractFromBudget(spend, budget) {
   return budget
     |> subtract(_, spend)
     |> Math.max(0, _)
 }
 
-function subtract(a, b) {
+fn subtract(a, b) {
   return a - b
 }

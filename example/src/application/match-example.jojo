@@ -4,7 +4,7 @@
  * arm.
  */
 
-export function httpStatusLabel(status) {
+export fn httpStatusLabel(status) {
   return match status {
     200 => "OK",
     201 => "Created",
@@ -14,7 +14,7 @@ export function httpStatusLabel(status) {
   }
 }
 
-export function classifyPostLength(post) {
+export fn classifyPostLength(post) {
   category := match true {
     post.body.length > 200 => "long",
     post.body.length > 50 => "medium",
@@ -24,7 +24,7 @@ export function classifyPostLength(post) {
   return { id: post.id, category }
 }
 
-export function describeUserRole(role) {
+export fn describeUserRole(role) {
   return match role {
     "admin" => "Full access",
     "editor" => "Can edit and publish",

@@ -5,7 +5,7 @@
  * chain still reads as a single pipeline.
  */
 
-export async function loadUserNames(ids, repository) {
+export async fn loadUserNames(ids, repository) {
   return ids
     |> mapAsync(id => repository.findById(id))
     |> mapAsync(user => user.name)
@@ -13,7 +13,7 @@ export async function loadUserNames(ids, repository) {
     |> await
 }
 
-export async function loadActiveUsers(ids, repository) {
+export async fn loadActiveUsers(ids, repository) {
   return ids
     |> mapAsync(id => repository.findById(id))
     |> filterAsync(user => user.active)

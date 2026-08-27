@@ -22,7 +22,7 @@ import {
  * intermediate stages stay lazy until a terminal operation is needed.
  */
 
-export function buildCollectionReport(posts) {
+export fn buildCollectionReport(posts) {
   total := count(posts)
 
   published := posts

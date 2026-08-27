@@ -1,7 +1,7 @@
 value := 10
 mutable counter := 0
 
-export function declarationExample() {
+export fn declarationExample() {
   counter = value
   return counter
 }
