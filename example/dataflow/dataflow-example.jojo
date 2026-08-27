@@ -1,0 +1,11 @@
+export async fn summarize(values) {
+  return values
+    |> filter(value => value % 2 === 0)
+    |> checkpoint("filtered")
+    |> mapAsync(value => value * 10)
+    |> toArrayAsync
+    |> await
+}
+
+result := await summarize([1, 2, 3, 4, 5, 6])
+console.log(JSON.stringify(result))
