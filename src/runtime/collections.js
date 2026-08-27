@@ -7,6 +7,22 @@ function iterable(value) {
     return value
   }
 
+  /*
+   * An async generator/iterable (e.g. from `mapAsync`, `checkpoint`,
+   * `inspect`, or `traceNode` wrapping one of those) has `.next` too, but
+   * calling it synchronously here would silently loop forever comparing a
+   * Promise's `.done` (always `undefined`) instead of a real boolean. Fail
+   * fast with a clear message instead of hanging.
+   */
+  if (typeof value[Symbol.asyncIterator] === 'function') {
+    throw new TypeError(
+      'Expected a sync iterable but got an async iterable/generator ' +
+      '(e.g. produced by mapAsync, filterAsync, checkpoint, inspect, or ' +
+      'retry on an async function). Use the async equivalent instead ' +
+      '(e.g. toArrayAsync, or `for await`).'
+    )
+  }
+
   if (typeof value.next === 'function') {
     return {
       [Symbol.iterator]() {
@@ -46,7 +62,89 @@ function asyncIterable(value) {
   throw new TypeError('Expected an iterable or iterator')
 }
 
+const PARALLEL_TAG = Symbol('jojo.parallel')
+
+/*
+ * Marks an iterable as wanting bounded-concurrency processing by the very
+ * next `map()` stage: `users |> parallel(8) |> map(fetchProfile)`. This
+ * does not itself run anything concurrently — it just tags the upstream
+ * iterable so `map()` knows to switch from sequential to a bounded worker
+ * pool. Any stage other than `map` receiving this tag is a usage error
+ * (the tag object has no iterator of its own).
+ */
+export function parallel(items, concurrency, meta) {
+  if (!Number.isInteger(concurrency) || concurrency <= 0) {
+    throw new RangeError('parallel concurrency must be a positive integer')
+  }
+  return { [PARALLEL_TAG]: concurrency, source: items, meta }
+}
+
+function isParallelTagged(value) {
+  return value != null && typeof value === 'object' && PARALLEL_TAG in value
+}
+
+function getIterator(items) {
+  if (items == null) {
+    throw new TypeError('Expected an iterable, got null or undefined')
+  }
+  if (typeof items[Symbol.asyncIterator] === 'function') return items[Symbol.asyncIterator]()
+  if (typeof items[Symbol.iterator] === 'function') return items[Symbol.iterator]()
+  if (typeof items.next === 'function') return items
+  throw new TypeError('Expected an iterable or iterator')
+}
+
+/*
+ * Bounded-concurrency mapping: at most `concurrency` calls to `fn` are ever
+ * in flight at once (no unbounded `Promise.all`), memory usage stays
+ * bounded by `concurrency`, and results are yielded in the original order
+ * as soon as the item at the head of the window resolves — later items in
+ * the window keep running concurrently in the background while the head
+ * is awaited.
+ *
+ * `pullNext()` returns the in-flight promise wrapped in a plain object
+ * (`{ promise }`) rather than the promise itself: since `pullNext` is an
+ * `async function`, directly returning/awaiting the bare `fn(...)` promise
+ * would make JS "flatten" it — `await pullNext()` would then already be
+ * the *resolved value* of `fn`, silently serializing every call (no two
+ * calls ever truly overlap) and, since a resolved value of `0`/`''`/etc.
+ * is falsy, incorrectly being treated as "no more items".
+ */
+async function* mapConcurrent(items, fn, concurrency) {
+  const iterator = getIterator(items)
+  const window = []
+  let index = 0
+  let exhausted = false
+
+  async function pullNext() {
+    if (exhausted) return undefined
+    const step = await iterator.next()
+    if (step.done) {
+      exhausted = true
+      return undefined
+    }
+    const i = index++
+    return { promise: Promise.resolve(fn(step.value, i)) }
+  }
+
+  for (let i = 0; i < concurrency && !exhausted; i++) {
+    const started = await pullNext()
+    if (started) window.push(started)
+  }
+
+  while (window.length) {
+    const head = window.shift()
+    yield await head.promise
+    if (!exhausted) {
+      const started = await pullNext()
+      if (started) window.push(started)
+    }
+  }
+}
+
 export function map(items, fn) {
+  if (isParallelTagged(items)) {
+    return mapConcurrent(items.source, fn, items[PARALLEL_TAG])
+  }
   return (function* () {
     let index = 0
     for (const item of iterable(items)) {
@@ -222,6 +320,19 @@ export function chunk(items, size) {
     }
     if (buffer.length) yield buffer
   })()
+}
+
+/*
+ * Groups a lazy/streaming source into fixed-size arrays, remaining lazy —
+ * items are never buffered beyond the current, not-yet-full batch, which
+ * is exactly the bounded buffering §13 (backpressure) requires. Equivalent
+ * to `chunk`, exposed under the pipeline's own vocabulary.
+ */
+export function batch(items, size, meta) {
+  if (!Number.isInteger(size) || size <= 0) {
+    throw new RangeError('batch size must be a positive integer')
+  }
+  return chunk(items, size)
 }
 
 export function window(items, size) {

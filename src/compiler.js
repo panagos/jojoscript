@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import {
   transformPipelines,
-  findPipelineStdlibFunctions
+  findPipelineStdlibFunctions,
+  hasPipelines
 } from './pipeline-parser.js'
 
 import {
@@ -32,8 +33,9 @@ const OWN_PACKAGE_NAME = JSON.parse(
 ).name
 const JOJO_RUNTIME = `${OWN_PACKAGE_NAME}/runtime`
 
-export function compile(source) {
+export function compile(source, options = {}) {
   let result = source
+  const runtimeImport = options.runtimeImport ?? JOJO_RUNTIME
 
   /*
    * Optional type annotations, stripped and re-expressed as JSDoc before
@@ -68,9 +70,19 @@ export function compile(source) {
     findPipelineStdlibFunctions(result)
 
   /*
+   * `jojo profile` compiles with `{ profile: true }`, which wraps every
+   * pipeline stage (and the initial source expression) in a call to the
+   * `traceNode` runtime helper. That helper is never written by the user,
+   * so it must be added to the auto-import list explicitly.
+   */
+  if (options.profile && hasPipelines(result) && !pipelineStdlibFunctions.includes('traceNode')) {
+    pipelineStdlibFunctions.push('traceNode')
+  }
+
+  /*
    * Pipelines.
    */
-  result = transformPipelines(result)
+  result = transformPipelines(result, options)
 
   /*
    * ES module imports.
@@ -86,37 +98,36 @@ export function compile(source) {
    * of creating a second, colliding import declaration.
    */
   if (pipelineStdlibFunctions.length) {
-    result = mergeRuntimeImport(result, pipelineStdlibFunctions)
+    result = mergeRuntimeImport(result, pipelineStdlibFunctions, runtimeImport)
   }
 
   return result.endsWith('\n') ? result : result + '\n'
 }
 
-const RUNTIME_IMPORT_PATTERN = new RegExp(
-  `import\\s*\\{([^}]*)\\}\\s*from\\s*(["'])${escapeRegExp(JOJO_RUNTIME)}\\2`
-)
-
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function mergeRuntimeImport(source, stdlibFunctions) {
-  const existing = source.match(RUNTIME_IMPORT_PATTERN)
+function mergeRuntimeImport(source, stdlibFunctions, runtimeImport) {
+  const pattern = new RegExp(
+    `import\\s*\\{([^}]*)\\}\\s*from\\s*(["'])([^"']+\\/runtime)\\2`
+  )
+  const existing = source.match(pattern)
 
   if (!existing) {
-    return `import { ${stdlibFunctions.join(', ')} } from "${JOJO_RUNTIME}"\n` + source
+    return `import { ${stdlibFunctions.join(', ')} } from "${runtimeImport}"\n` + source
   }
 
   const existingNames = existing[1].split(',').map(name => name.trim()).filter(Boolean)
   const merged = [...new Set([...existingNames, ...stdlibFunctions])]
 
   return source.replace(
-    RUNTIME_IMPORT_PATTERN,
-    `import { ${merged.join(', ')} } from "${JOJO_RUNTIME}"`
+    pattern,
+    `import { ${merged.join(', ')} } from "${runtimeImport}"`
   )
 }
 
-export function compileFile(input, outDir = null) {
+export function compileFile(input, outDir = null, options = {}) {
   const src = path.resolve(input)
   const dir = outDir
     ? path.resolve(outDir)
@@ -131,14 +142,14 @@ export function compileFile(input, outDir = null) {
 
   fs.writeFileSync(
     out,
-    compile(fs.readFileSync(src, 'utf8')),
+    compile(fs.readFileSync(src, 'utf8'), options),
     'utf8'
   )
 
   return { input: src, output: out }
 }
 
-export function compileDirectory(inputDir, outDir = null) {
+export function compileDirectory(inputDir, outDir = null, options = {}) {
   const root = path.resolve(inputDir)
   const target = outDir
     ? path.resolve(outDir)
@@ -173,7 +184,7 @@ export function compileDirectory(inputDir, outDir = null) {
       fs.mkdirSync(path.dirname(out), { recursive: true })
       fs.writeFileSync(
         out,
-        compile(fs.readFileSync(full, 'utf8')),
+        compile(fs.readFileSync(full, 'utf8'), options),
         'utf8'
       )
 

@@ -4,6 +4,8 @@ import {
   maskNonCode
 } from './lexer.js'
 
+import { computePipelineId } from './pipeline-hash.js'
+
 const PIPELINE_STDLIB = new Set([
   'map',
   'filter',
@@ -31,8 +33,29 @@ const PIPELINE_STDLIB = new Set([
   'tap',
   'mapAsync',
   'filterAsync',
-  'toArrayAsync'
+  'toArrayAsync',
+  'checkpoint',
+  'inspect',
+  'parallel',
+  'batch',
+  'retry'
 ])
+
+/*
+ * These stages are "runtime-aware": the compiler auto-appends a hidden,
+ * literal metadata argument (pipeline id, stable node id, stage type) to
+ * their call so the runtime operator can identify itself for
+ * checkpointing/profiling/error-reporting without the user ever writing
+ * that plumbing by hand.
+ */
+const RUNTIME_AWARE_STAGES = new Set(['checkpoint', 'inspect', 'parallel', 'batch'])
+
+/*
+ * A `retry(...)` stage immediately following one of these fuses into that
+ * stage's function argument (per-item retry) instead of becoming its own
+ * pipeline stage. See `fuseRetryStages`.
+ */
+const MAP_LIKE_STAGES = new Set(['map', 'mapAsync', 'filterAsync', 'tap'])
 
 /*
  * These stage names are handled at compile time instead of being resolved
@@ -204,13 +227,95 @@ function parsePipelineStatement(source, statementStart, statementEnd) {
   return { expression, stages, prefix }
 }
 
-export function emitPipeline(pipeline) {
+function metaLiteral(pipelineId, nodeId, type, extra = {}) {
+  return JSON.stringify({ id: nodeId, pipelineId, type, ...extra })
+}
+
+/*
+ * A bare integer shorthand (`retry(3)`) becomes `{ attempts: 3 }`; anything
+ * else (an object literal, a variable holding options, ...) is passed
+ * through untouched and assumed to already be options-shaped at runtime.
+ */
+function normalizeRetryOptions(args) {
+  if (args.length === 0) {
+    throw new SyntaxError('retry expects an attempt count or an options object, e.g. `retry(3)` or `retry({ attempts: 3 })`')
+  }
+  if (args.length > 1) {
+    throw new SyntaxError('retry takes exactly one argument: an attempt count or an options object')
+  }
+
+  const arg = args[0].trim()
+  return /^\d+$/.test(arg) ? `{ attempts: ${arg} }` : arg
+}
+
+/*
+ * `retry(...)` immediately following a `map`/`mapAsync`/`filterAsync`/
+ * `tap` stage fuses into that stage's function argument, so each *item* is
+ * retried independently (`map(items, retry(fn, opts, meta))`) instead of
+ * retry meaninglessly wrapping an already-lazy, not-yet-run generator.
+ * With no such preceding stage, `retry` instead wraps the whole expression
+ * built so far as a standalone stage (handled in the main emission loop).
+ */
+function fuseRetryStages(stages, pipelineId) {
+  const result = []
+
+  for (const stage of stages) {
+    if (stage.name !== 'retry') {
+      result.push(stage)
+      continue
+    }
+
+    const options = normalizeRetryOptions(stage.args)
+    const previous = result[result.length - 1]
+
+    if (previous && MAP_LIKE_STAGES.has(previous.name) && previous.args.length) {
+      const meta = metaLiteral(pipelineId, stage.nodeId, 'retry')
+      const lastIndex = previous.args.length - 1
+      previous.args[lastIndex] = `retry(${previous.args[lastIndex]}, ${options}, ${meta})`
+      continue
+    }
+
+    result.push({ ...stage, args: [options], standaloneRetry: true })
+  }
+
+  return result
+}
+
+export function emitPipeline(pipeline, options = {}) {
   let expression = pipeline.expression.trim()
   let prefix = pipeline.prefix ? `${pipeline.prefix} ` : ''
 
-  for (const stage of pipeline.stages) {
+  const pipelineId = computePipelineId(pipeline)
+
+  const checkpointOrder = pipeline.stages
+    .filter(stage => stage.name === 'checkpoint' && stage.args.length)
+    .map(stage => stripQuotes(stage.args[0]))
+
+  let checkpointsSeen = 0
+
+  const stagesWithIds = pipeline.stages.map((stage, index) => ({
+    ...stage,
+    nodeId: `node-${index + 1}`
+  }))
+
+  const stages = fuseRetryStages(stagesWithIds, pipelineId)
+
+  if (options.profile) {
+    expression = `traceNode(${expression}, ${metaLiteral(pipelineId, 'node-0', 'source')})`
+  }
+
+  for (const stage of stages) {
     if (PIPELINE_CONTROL_STAGES.has(stage.name)) {
       expression = emitControlStage(stage, expression)
+      continue
+    }
+
+    if (stage.name === 'retry' && stage.standaloneRetry) {
+      const meta = metaLiteral(pipelineId, stage.nodeId, 'retry')
+      expression = `(await retry(async () => (${expression}), ${stage.args[0]}, ${meta})())`
+      if (options.profile) {
+        expression = `traceNode(${expression}, ${metaLiteral(pipelineId, stage.nodeId, 'retry')})`
+      }
       continue
     }
 
@@ -225,9 +330,26 @@ export function emitPipeline(pipeline) {
     } else {
       expression = `${stage.name}(${expression}, ${stage.args.join(', ')})`
     }
+
+    if (RUNTIME_AWARE_STAGES.has(stage.name)) {
+      const extra = stage.name === 'checkpoint'
+        ? { checkpointOrder, checkpointIndex: checkpointsSeen++ }
+        : {}
+      const meta = metaLiteral(pipelineId, stage.nodeId, stage.name, extra)
+      expression = expression.slice(0, -1) + `, ${meta})`
+    }
+
+    if (options.profile) {
+      expression = `traceNode(${expression}, ${metaLiteral(pipelineId, stage.nodeId, stage.name)})`
+    }
   }
 
   return prefix + expression
+}
+
+function stripQuotes(text) {
+  const trimmed = text.trim()
+  return /^["'`]/.test(trimmed) ? trimmed.slice(1, -1) : trimmed
 }
 
 function emitControlStage(stage, expression) {
@@ -294,9 +416,9 @@ function findStatementBounds(source, pipe) {
     }
 
     if (c === '\n') {
-      let j = i - 1
-      while (j >= 0 && [' ', '\t', '\r'].includes(mask[j])) j--
-      if (j < 0 || mask[j] === '\n') {
+      let j = i + 1
+      while (j < pipe.start && [' ', '\t', '\r'].includes(mask[j])) j++
+      if (mask.slice(j, j + 2) !== '|>' && mask[j] !== '.') {
         start = i + 1
         break
       }
@@ -368,7 +490,7 @@ function findStatementBounds(source, pipe) {
   return { start, end }
 }
 
-export function transformPipelines(source) {
+export function transformPipelines(source, options = {}) {
   let result = source
 
   for (let iteration = 0; iteration < 1000; iteration++) {
@@ -387,7 +509,7 @@ export function transformPipelines(source) {
       )
     }
 
-    const replacement = emitPipeline(pipeline)
+    const replacement = emitPipeline(pipeline, options)
 
     result =
       result.slice(0, bounds.start) +
@@ -415,4 +537,47 @@ export function findPipelineStdlibFunctions(source) {
   return [...result]
 }
 
+/*
+ * True if the source contains at least one pipeline statement. Used by the
+ * compiler to decide whether the `traceNode` profiling helper needs to be
+ * auto-imported, independent of which (if any) stdlib stages are used.
+ */
+export function hasPipelines(source) {
+  const tokens = significantTokens(tokenize(source))
+  return tokens.some(token => token.type === 'pipeline')
+}
+
+/*
+ * Non-mutating forward scan collecting every pipeline statement in the
+ * source, used for static analysis (`jojo graph`) rather than compilation.
+ * Unlike `transformPipelines` (which repeatedly processes the *last* pipe
+ * in the whole file so nested pipelines-in-arguments resolve inside-out),
+ * this simply walks forward statement-by-statement, which is sufficient
+ * for the common case of top-level `|>` chains that graph/profile display.
+ */
+export function findAllPipelines(source) {
+  const pipelines = []
+  let searchFrom = 0
+
+  while (searchFrom < source.length) {
+    const remainder = source.slice(searchFrom)
+    const tokens = significantTokens(tokenize(remainder))
+    const pipe = tokens.find(token => token.type === 'pipeline')
+    if (!pipe) break
+
+    const absolutePipe = { ...pipe, start: pipe.start + searchFrom, end: pipe.end + searchFrom }
+    const bounds = findStatementBounds(source, absolutePipe)
+    const pipeline = parsePipelineStatement(source, bounds.start, bounds.end)
+
+    if (pipeline) {
+      pipelines.push({ ...pipeline, start: bounds.start, end: bounds.end })
+    }
+
+    searchFrom = Math.max(bounds.end, absolutePipe.end) + 1
+  }
+
+  return pipelines
+}
+
 export { parsePipelineStatement, findStatementBounds }
+
