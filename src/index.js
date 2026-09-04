@@ -17,3 +17,17 @@ export {
 export {
   transformTypeAnnotations
 } from './type-annotations.js'
+
+export {
+  analyzePipelines,
+  buildGraph,
+  renderGraphText,
+  renderGraphDot
+} from './pipeline-ir.js'
+
+export {
+  transformEffectDeclarations,
+  transformHandleBlocks,
+  findEffectDeclarations,
+  findHandleBlocks
+} from './effect-parser.js'
