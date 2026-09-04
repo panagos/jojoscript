@@ -1,0 +1,34 @@
+/*
+ * Example 2 — Multiple handlers.
+ *
+ * `syncUser` is the program: it describes wanting `fetchUser` and
+ * `saveUser`, and nothing about how either is carried out. The two
+ * exported wrappers below run that *exact same* program under two
+ * completely different handler maps.
+ */
+
+effect fetchUser(id)
+effect saveUser(user)
+
+async fn syncUser(id) {
+  user := await fetchUser(id)
+  return await saveUser(user)
+}
+
+export async fn syncUserWithProductionHandlers(id) {
+  return handle {
+    fetchUser: id => ({ id, name: `User ${id}`, source: "http" }),
+    saveUser: user => ({ ...user, savedTo: "database" })
+  } {
+    return await syncUser(id)
+  }
+}
+
+export async fn syncUserWithTestHandlers(id) {
+  return handle {
+    fetchUser: id => ({ id, name: "Fake User", source: "memory" }),
+    saveUser: user => ({ ...user, savedTo: "in-memory-store" })
+  } {
+    return await syncUser(id)
+  }
+}

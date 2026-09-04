@@ -1,0 +1,22 @@
+/*
+ * Example 5 — Effects and the execution plan.
+ *
+ * This file is not executed by its test; it is statically inspected via
+ * `analyzePipelines` (the same function `jojo graph` uses), demonstrating
+ * that effect usage is visible in the plan: which node uses which effect,
+ * and whether a `handle { ... }` for it is statically visible in the file.
+ */
+
+effect fetchUser(id)
+effect saveUser(user)
+
+handle {
+  fetchUser: id => ({ id })
+} {
+  users
+    |> map(user => fetchUser(user.id))
+    |> parallel(8)
+    |> map(saveUser)
+    |> toArrayAsync
+    |> await
+}

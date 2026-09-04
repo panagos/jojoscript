@@ -1,0 +1,32 @@
+/*
+ * Example 3 — Deterministic testing.
+ *
+ * `timestampedMessage` performs the `currentTime` effect instead of
+ * calling `Date.now()`/`new Date()` directly. A production handler makes
+ * it behave like normal, real-clock code; a test handler makes it fully
+ * deterministic and reproducible, without changing `timestampedMessage`
+ * itself at all.
+ */
+
+effect currentTime()
+
+async fn timestampedMessage(text) {
+  time := await currentTime()
+  return `${text} @ ${time}`
+}
+
+export async fn withRealClock(text) {
+  return handle {
+    currentTime: () => new Date().toISOString()
+  } {
+    return await timestampedMessage(text)
+  }
+}
+
+export async fn withFixedClock(text, fixedTime) {
+  return handle {
+    currentTime: () => fixedTime
+  } {
+    return await timestampedMessage(text)
+  }
+}

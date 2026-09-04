@@ -20,6 +20,12 @@ import {
 
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
+import {
+  transformEffectDeclarations,
+  transformHandleBlocks,
+  findEffectDeclarations,
+  findHandleBlocks
+} from './effect-parser.js'
 
 /*
  * The auto-generated runtime import must use whatever name this package is
@@ -55,6 +61,18 @@ export function compile(source, options = {}) {
   result = transformMatchExpressions(result)
 
   /*
+   * Effects: `effect name(params)` declarations and `handle { ... } { ... }`
+   * blocks. Detected before either transform runs (both remove the source
+   * syntax they recognize), so the compiler knows afterwards whether the
+   * `defineEffect`/`withHandlers` runtime helpers need to be auto-imported.
+   */
+  const usesEffectDeclarations = findEffectDeclarations(result).length > 0
+  const usesHandleBlocks = findHandleBlocks(result).length > 0
+
+  result = transformEffectDeclarations(result)
+  result = transformHandleBlocks(result)
+
+  /*
    * Jojo declarations.
    */
   result = transformMultiBindingDeclarations(result)
@@ -68,6 +86,18 @@ export function compile(source, options = {}) {
    */
   const pipelineStdlibFunctions =
     findPipelineStdlibFunctions(result)
+
+  /*
+   * `effect`/`handle` syntax is never written by the user as a runtime
+   * function call, so their required runtime helpers are added explicitly,
+   * the same way `traceNode` is added below for `jojo profile`.
+   */
+  if (usesEffectDeclarations && !pipelineStdlibFunctions.includes('defineEffect')) {
+    pipelineStdlibFunctions.push('defineEffect')
+  }
+  if (usesHandleBlocks && !pipelineStdlibFunctions.includes('withHandlers')) {
+    pipelineStdlibFunctions.push('withHandlers')
+  }
 
   /*
    * `jojo profile` compiles with `{ profile: true }`, which wraps every

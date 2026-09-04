@@ -1,3 +1,5 @@
+import { getParallelHandler } from './effects.js'
+
 function iterable(value) {
   if (value == null) {
     throw new TypeError('Expected an iterable, got null or undefined')
@@ -141,9 +143,36 @@ async function* mapConcurrent(items, fn, concurrency) {
   }
 }
 
+/*
+ * A `PARALLEL` handler may be an ordinary sync function returning an
+ * array, an async function returning a Promise of an (async) iterable, or
+ * an async generator function returning an async iterable directly (no
+ * Promise wrapper at all). This normalizes all three into a single async
+ * iterable so `map()`'s return contract stays the same either way.
+ */
+async function* toAsyncIterable(resultOrPromise) {
+  const result = await resultOrPromise
+  for await (const item of result) yield item
+}
+
 export function map(items, fn) {
   if (isParallelTagged(items)) {
-    return mapConcurrent(items.source, fn, items[PARALLEL_TAG])
+    const concurrency = items[PARALLEL_TAG]
+    const handler = getParallelHandler()
+
+    /*
+     * `parallel(n)` is effect-backed: a `PARALLEL` handler installed via
+     * `handle { PARALLEL: ... } { ... }` decides how this actually runs
+     * (real concurrency, deterministic sequential execution, recorded
+     * scheduling, ...) instead of the default bounded-concurrency worker
+     * pool below. With no handler installed — the common case — behavior
+     * is exactly what it was before effects existed.
+     */
+    if (handler) {
+      return toAsyncIterable(handler({ items: items.source, fn, concurrency, meta: items.meta }))
+    }
+
+    return mapConcurrent(items.source, fn, concurrency)
   }
   return (function* () {
     let index = 0

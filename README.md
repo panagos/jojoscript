@@ -1,4 +1,4 @@
-# JojoScript 0.8.0
+# JojoScript 0.9.0
 
 JojoScript is a small JavaScript-compatible language and runtime for
 expressive, composable pipelines. It adds lightweight syntax for declarations,
@@ -6,7 +6,8 @@ functions, pattern matching, type annotations, and pipelines while preserving
 ordinary JavaScript. Its compiler uses a lightweight lexer and source
 transformations rather than a full AST, keeping the toolchain compact. The
 project also provides lazy and async collection operators, checkpointing,
-retries, metrics, pipeline graphing, CLI workflows, and VS Code editor support.
+retries, metrics, pipeline graphing, CLI workflows, effect handlers, and
+VS Code editor support.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and
 [example/](example/) for a complete runnable application that exercises
@@ -305,7 +306,368 @@ auto-imported):
 See [ITERATOR_PROPOSAL.md](ITERATOR_PROPOSAL.md) and [ITERATORS.md](ITERATORS.md)
 for the full laziness/memory model.
 
-## JavaScript compatibility
+## Effect Handlers
+
+> This is a deliberately simplified effect-handler model, not full
+> algebraic effects with delimited continuations (no `resume`, no
+> resuming a suspended computation zero/more-than-once, no re-throwing to
+> an outer handler after partial handling). What it *does* give you: named
+> effects, dynamic handler dispatch, nesting/overriding, deterministic
+> mock handlers, record/replay, and a `parallel()` effect — all with plain
+> JavaScript interop. If you already know algebraic effects from OCaml/Eff/
+> Koka, think "a practical subset", not "the whole theory".
+
+The central idea:
+
+```
+Pipeline
+  describes computation
+
+Execution Plan
+  describes how the computation can be executed
+
+Effect
+  describes an external capability/action
+
+Effect Handler
+  decides how that capability/action is interpreted
+```
+
+**Describe the computation once, choose its interpretation separately.**
+
+### What an effect is
+
+`effect name(params)` declares a named capability — "this program wants to
+fetch a user", not "this program makes an HTTP GET request". It compiles to
+a plain runtime call:
+
+```jojo
+effect fetchUser(id)
+effect saveUser(user)
+```
+
+becomes:
+
+```js
+const fetchUser = defineEffect("fetchUser", ["id"])
+const saveUser = defineEffect("saveUser", ["user"])
+```
+
+Calling `fetchUser(id)` doesn't run anything itself — it looks up the
+currently active handler for `"fetchUser"` and delegates to it. **Calling an
+effect always returns a Promise**, even if the active handler is
+synchronous, so the calling code never has to know or care whether the
+handler in charge is a real (often async) implementation or a fake (often
+sync) one.
+
+### What an effect handler is, and how to install one
+
+A handler supplies the implementation for one or more named effects, for
+the dynamic extent of a block:
+
+```jojo
+effect fetchUser(id)
+effect saveUser(user)
+
+users
+  |> map(user => fetchUser(user.id))
+  |> map(saveUser)
+```
+
+runs under:
+
+```jojo
+handle {
+  fetchUser: id => http.get(`/users/${id}`),
+  saveUser: user => database.save(user)
+} {
+  users
+    |> map(user => fetchUser(user.id))
+    |> map(saveUser)
+}
+```
+
+which compiles to:
+
+```js
+(await withHandlers({
+  fetchUser: id => http.get(`/users/${id}`),
+  saveUser: user => database.save(user)
+}, async () => {
+  users
+    |> map(user => fetchUser(user.id))
+    |> map(saveUser)
+}))
+```
+
+A handler value can be a plain function, or a `{ handle, deterministic }`
+descriptor when you want to declare it explicitly deterministic (useful for
+inspection — see below):
+
+```jojo
+handle {
+  fetchUser: { handle: id => fakeUser(id), deterministic: true }
+} {
+  ...
+}
+```
+
+Because `handle { ... } { ... }` compiles to `await withHandlers(...)`, it
+must be used inside an `async fn`/`async function`, or at the top level of
+an ES module (Node's top-level `await`) — the same requirement the existing
+`|> await` pipeline stage already has.
+
+### How the same program runs under different handlers
+
+The program never mentions which handler is active — only the caller
+decides that, by choosing which `handle { ... }` wraps it:
+
+```jojo
+effect fetchUser(id)
+effect saveUser(user)
+
+async fn syncUser(id) {
+  user := await fetchUser(id)
+  return await saveUser(user)
+}
+
+async fn syncUserInProduction(id) {
+  return handle {
+    fetchUser: id => http.get(`/users/${id}`),
+    saveUser: user => database.save(user)
+  } {
+    return await syncUser(id)
+  }
+}
+
+async fn syncUserInTests(id) {
+  return handle {
+    fetchUser: id => ({ id, name: "Fake User" }),
+    saveUser: user => ({ ...user, savedTo: "in-memory" })
+  } {
+    return await syncUser(id)
+  }
+}
+```
+
+`syncUser` is identical in both cases; only the handler map differs. See
+[example/src/effects/multiple-handlers.jojo](example/src/effects/multiple-handlers.jojo)
+and
+[example/src/effects/deterministic-testing.jojo](example/src/effects/deterministic-testing.jojo).
+
+### Nested handlers and resolution rules
+
+`handle` blocks nest. An inner handler for a given effect name **overrides**
+an outer one; an inner handler map that doesn't mention an effect leaves it
+falling through to the next outer handler that does:
+
+```jojo
+handle {
+  fetchUser: outerFake
+} {
+  handle {
+    fetchUser: innerFake
+  } {
+    users |> map(fetchUser) // resolves to innerFake
+  }
+
+  users |> map(fetchUser) // resolves to outerFake, outside the inner block
+}
+```
+
+Resolution walks from the innermost active `handle` block outward, taking
+the first one that declares the effect. Once a `handle` block's body
+finishes, its handlers are gone — code that runs afterwards (or a lazy
+pipeline consumed afterwards, see the caveat below) no longer sees them.
+
+### Error handling
+
+| Situation | Result |
+|---|---|
+| Effect invoked with no active handler for it | `UnhandledEffectError`: `` Unhandled effect: fetchUser\nNo handler registered for effect "fetchUser" `` |
+| Handler throws (or its returned Promise rejects) | `EffectHandlerError`, naming the effect and wrapping the original error as `.cause` |
+| Handler value isn't a function or `{ handle, deterministic }` | `TypeError`, thrown immediately when `handle { ... }` installs it, not at call time |
+| A handler recursively invokes the same effect (directly, or indirectly through another effect) | `RecursiveEffectError`, naming the effect |
+| Effect invoked entirely outside any `handle` block | Same as "no active handler" — `UnhandledEffectError` |
+
+### `parallel()` as an effect
+
+`items |> parallel(n) |> map(fn)` is effect-backed. With no handler
+installed, it behaves exactly as before (a bounded-concurrency worker
+pool — existing programs are unaffected). Installing a `PARALLEL` handler
+lets a different interpretation take over completely:
+
+```jojo
+handle {
+  PARALLEL: async ({ items, fn, concurrency }) => {
+    // deterministic, strictly sequential — great for tests
+    results := []
+    for await (const item of items) results.push(await fn(item))
+    return results
+  }
+} {
+  numbers |> parallel(8) |> map(process) |> toArrayAsync |> await
+}
+```
+
+A `PARALLEL` handler receives `{ items, fn, concurrency, meta }` and returns
+an (async) iterable of results in order — the same contract the built-in
+implementation follows. This lets production code use real concurrency,
+tests force deterministic sequential execution, and a debugging handler
+record scheduling information, all without changing the pipeline. See
+[example/src/effects/parallel-effect.jojo](example/src/effects/parallel-effect.jojo).
+
+### Effects in the execution plan
+
+`jojo graph`/`analyzePipelines` expose which pipeline nodes reference which
+declared effects, and a best-effort static "is a handler for it declared
+anywhere in this file?" signal:
+
+```jojo
+effect fetchUser(id)
+effect saveUser(user)
+
+handle {
+  fetchUser: id => ({ id })
+} {
+  users
+    |> map(user => fetchUser(user.id))
+    |> parallel(8)
+    |> map(saveUser)
+}
+```
+
+```
+SOURCE users
+      │
+      ▼
+MAP user => fetchUser(user.id)  [effects: fetchUser]
+      │
+      ▼
+PARALLEL 8
+      │
+      ▼
+MAP saveUser  [effects: saveUser]
+      │
+      ▼
+RESULT
+```
+
+Programmatically, `analyzePipelines(source)` returns each pipeline's graph
+with an `effects` array:
+
+```js
+[
+  { name: "fetchUser", nodeId: "node-1", staticallyHandled: true },
+  { name: "saveUser", nodeId: "node-3", staticallyHandled: false }
+]
+```
+
+`staticallyHandled` is a textual, best-effort signal (a `handle { name: ... }`
+naming that effect was found somewhere in the file) — it cannot see handlers
+installed conditionally or dynamically at runtime. For that, call
+`describeHandlers()` from inside a running `handle { ... }` block: it
+reports, per currently-handled effect, whether the installed handler
+declared itself `deterministic`, and the declaring effect's `sideEffecting`/
+`replayable` metadata (from `effect name(params)`'s options, or defaults —
+`sideEffecting: true`, `replayable: false`).
+
+### Effects and checkpoint/resume
+
+Consider:
+
+```jojo
+effect fetchUser(id)
+
+ids
+  |> mapAsync(fetchUser)
+  |> checkpoint("users-fetched")
+  |> toArrayAsync
+```
+
+`checkpoint(name)` either streams items through once and durably saves them
+all, or — if a checkpoint for `name` already completed — returns the saved
+items **without ever touching the upstream iterable at all**. This gives
+effects placed before a checkpoint a specific, non-magical guarantee:
+
+- **Once a checkpoint has completed**, a later run does **not** re-invoke
+  the upstream effect(s) — the saved items are restored instead. This is
+  restoration from checkpoint state, not effect replay: the checkpoint
+  store never sees the individual `fetchUser` calls, only the pipeline
+  items that came out the other side.
+- **If a checkpoint never completed** (crash, first run, ...), the upstream
+  effect(s) run again from scratch on the next attempt — there is no
+  per-item resume within an incomplete checkpoint.
+
+**This is explicitly not exactly-once effect execution.** It is
+"at-least-once until the checkpoint fully completes, then exactly zero
+additional times after." A non-idempotent, non-replayable effect
+(`replayable: false`, the default) must tolerate being invoked again on a
+crash-and-retry before its checkpoint completes. Mark an effect
+`{ replayable: true }` only if calling it again with the same arguments is
+actually safe. See
+[example/src/effects/checkpoint-resume.jojo](example/src/effects/checkpoint-resume.jojo)
+and `test/effects-checkpoint.test.js` for both cases exercised end to end.
+
+### Record/replay
+
+A handler map can be wrapped to record every call (arguments + result) to
+an `EffectLog`, and later replayed from that log without running any real
+code:
+
+```js
+import { recordHandlers, replayHandlers, withHandlers } from "@panagos/jojoscript/runtime"
+import { FileEffectLog } from "@panagos/jojoscript/runtime"
+
+const log = new FileEffectLog("./fetchUser.log.json")
+
+// Recording run: calls the real handler, and appends each call to the log.
+await withHandlers(recordHandlers({ fetchUser: realFetchUser }, log), program)
+
+// Replay run: never calls realFetchUser again, just replays recorded results.
+await withHandlers(replayHandlers(["fetchUser"], log), program)
+```
+
+`EffectLog` (`MemoryEffectLog`/`FileEffectLog`) is a small, storage-agnostic
+interface (`record`/`replayNext`), mirroring `CheckpointStore` — an
+extension point for a future backend, not a full production-grade
+persistence system.
+
+### JavaScript interoperability
+
+A handler is just a normal JavaScript function — sync or async — and can
+call anything JavaScript can call:
+
+```jojo
+effect fetchUser(id)
+
+handle {
+  fetchUser: id => fetch(`/users/${id}`)
+} {
+  ...
+}
+```
+
+### Guarantees and limitations
+
+- Handler dispatch is dynamic-scope-based (an `AsyncLocalStorage` stack),
+  the same mechanism `checkpoint`/`inspect`/metrics already use for
+  execution context. Because pipeline stages are lazy, a `handle { ... }`
+  block's handlers are only active while its body is *consumed* (e.g. via
+  `toArray`/`toArrayAsync`/`reduce`/...), not merely constructed — always
+  consume (or `await`) an effectful pipeline inside the `handle` block
+  itself.
+- No delimited continuations: a handler cannot `resume` the computation
+  that invoked the effect, inspect intermediate state, or resume it more
+  than once.
+- Recursion guard: a handler invoking the same effect it is currently
+  handling (directly or through another effect) is rejected with
+  `RecursiveEffectError` rather than hanging or overflowing the stack.
+- Existing programs that never use `effect`/`handle` syntax, and existing
+  `parallel()` usage with no `PARALLEL` handler installed, are completely
+  unaffected — this is additive, opt-in syntax.
+
+
 
 JojoScript intentionally leaves ordinary JavaScript alone. You can use:
 
@@ -365,6 +727,12 @@ application that fetches posts from a public API, stores them, and prints a
 report, alongside one small focused module (and test) per feature. Every
 module is imported and invoked from `example/src/main.jojo`, so both
 `npm start` and `npm test` exercise the whole example.
+
+[example/src/effects/](example/src/effects/) has six focused Effect Handlers
+examples (each with a matching test under `example/test/`): basic effects,
+running the same program with multiple handlers, deterministic testing,
+`parallel()` as an effect, effect visibility in the execution plan, and the
+checkpoint/resume interaction.
 
 ```bash
 cd example
@@ -426,4 +794,16 @@ resulting `.vsix` locally.
 - **Multi-binding declarations (`a, b := 1, 2`) are single-line only** and
   always wrap the right-hand side in `[...]`; use `[a, b] := expr()` to
   destructure a single expression instead.
+- **Effect Handlers are a simplified model, not full algebraic effects.**
+  No delimited continuations/`resume`; a handler cannot inspect or resume
+  the suspended computation, or resume it more than once. See the
+  "Effect Handlers" section for the full list of guarantees/limitations.
+- **`handle { ... } { ... }` handlers are only active while their body is
+  actually consumed.** Constructing a lazy pipeline inside a `handle` block
+  without consuming it there (no `toArray`/`toArrayAsync`/`reduce`/...) means
+  effects pulled later, outside the block, won't see its handlers.
+- **Only `PARALLEL` is a built-in effect today.** The other capabilities
+  mentioned as a long-term direction (`IO`, `HTTP`, `FILE`, `DATABASE`,
+  `SLEEP`, `TIME`, `RANDOM`, `CHECKPOINT`) are not implemented — user-defined
+  `effect` declarations cover the same need today.
 
