@@ -48,4 +48,23 @@ export {
   getDefaultContext,
   resetDefaultContext
 } from './execution-context.js'
+export {
+  defineEffect,
+  withHandlers,
+  performEffect,
+  describeEffect,
+  listEffects,
+  describeHandlers,
+  getParallelHandler,
+  recordHandlers,
+  replayHandlers,
+  UnhandledEffectError,
+  EffectHandlerError,
+  RecursiveEffectError
+} from './effects.js'
+export {
+  EffectLog,
+  MemoryEffectLog,
+  FileEffectLog
+} from './effect-log.js'
 
