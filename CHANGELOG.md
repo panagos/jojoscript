@@ -1,6 +1,45 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — Effect Handlers
+
+### Language
+
+- Added Effect Handlers: `effect name(params)` declares a named effect, and
+  `handle { name: handlerFn, ... } { body }` installs handlers for the
+  dynamic extent of `body`, nestable/overridable, resolved dynamically at
+  the point of invocation. Compiles to `defineEffect`/`withHandlers` calls
+  in `@panagos/jojoscript/runtime`; auto-imported only when used.
+
+### Runtime
+
+- Added the effect runtime (`src/runtime/effects.js`): `defineEffect`,
+  `withHandlers`, `performEffect`, `describeEffect`/`listEffects`/
+  `describeHandlers` for inspection, and `UnhandledEffectError`/
+  `EffectHandlerError`/`RecursiveEffectError` for descriptive failures.
+- Added `parallel(n)` as an effect-backed capability: an installed
+  `PARALLEL` handler decides how `parallel(n) |> map(fn)` runs (real
+  concurrency, deterministic sequential execution, recorded scheduling,
+  ...); with no handler installed, behavior is unchanged from before.
+- Added a record/replay extension point: `recordHandlers`/`replayHandlers`
+  plus `EffectLog`/`MemoryEffectLog`/`FileEffectLog` (mirroring the
+  checkpoint store interfaces).
+
+### Compiler / inspection
+
+- `analyzePipelines`/`buildGraph` (and `jojo graph`'s text/dot output) now
+  expose which pipeline nodes reference a declared effect, and a
+  best-effort static "is a handler declared for it in this file" signal.
+
+### Examples and tests
+
+- Added six focused Effect Handlers examples under `example/src/effects/`
+  (basic effects, multiple handlers, deterministic testing, `parallel()` as
+  an effect, effect visibility in the execution plan, checkpoint/resume
+  interaction), each with a corresponding test under `example/test/`.
+- Added root test coverage for effect declarations/handle-block compilation,
+  handler dispatch/nesting/errors, the `PARALLEL` effect, effect visibility
+  in the execution plan, record/replay, and the checkpoint/resume
+  interaction semantics.
 
 ## 0.8.0 — Dataflow execution, observability, and CLI workflows
 
