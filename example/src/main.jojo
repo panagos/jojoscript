@@ -20,6 +20,9 @@ import {
   labelTitlesWithIds
 } from "./application/collection-extras.js"
 
+import { getUserName } from "./effects/basic-effects.js"
+import { syncUserWithProductionHandlers, syncUserWithTestHandlers } from "./effects/multiple-handlers.js"
+
 db := await createDatabase()
 source := new HttpPostSource("https://jsonplaceholder.typicode.com/posts")
 repository := new SqlitePostRepository(db)
@@ -32,11 +35,11 @@ report := buildReport(posts)
 
 console.log(JSON.stringify(report, null, 2))
 
-printFeatureShowcase(posts)
+await printFeatureShowcase(posts)
 
 await closeAsync(db)
 
-fn printFeatureShowcase(posts: posts) {
+async fn printFeatureShowcase(posts: posts) {
   console.log("\n--- Feature showcase ---")
 
   console.log("declarations: mutable reassigned from const ->", declarationExample())
@@ -64,6 +67,10 @@ fn printFeatureShowcase(posts: posts) {
   console.log("collection distinctBy: unique users ->", uniquePostsByUser(posts).length)
   console.log("collection zip: first pair ->", pairTitlesWithIds(posts)[0])
   console.log("collection zipWith: first label ->", labelTitlesWithIds(posts)[0])
+
+  console.log("effects: getUserName(1) ->", await getUserName(1))
+  console.log("effects: syncUser, production handlers ->", await syncUserWithProductionHandlers(1))
+  console.log("effects: syncUser, test handlers ->", await syncUserWithTestHandlers(1))
 }
 
 

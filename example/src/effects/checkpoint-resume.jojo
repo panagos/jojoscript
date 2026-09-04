@@ -1,0 +1,24 @@
+/*
+ * Example 6 — Effects and checkpoint/resume.
+ *
+ * See the README's "Effects and checkpoint/resume" section for the exact
+ * semantics this demonstrates: an effect upstream of a checkpoint is NOT
+ * re-invoked once that checkpoint has completed (the saved items are used
+ * instead), but WILL run again on a retry if the checkpoint never
+ * completed in the first place. There is no exactly-once guarantee — see
+ * the corresponding test for both cases.
+ */
+
+effect fetchUser(id)
+
+export async fn fetchAndCheckpoint(ids, checkpointName) {
+  return handle {
+    fetchUser: id => ({ id, name: `User ${id}` })
+  } {
+    return ids
+      |> mapAsync(fetchUser)
+      |> checkpoint(checkpointName)
+      |> toArrayAsync
+      |> await
+  }
+}

@@ -1,0 +1,25 @@
+/*
+ * Example 1 — Basic effects.
+ *
+ * `effect fetchUser(id)` declares a named capability without saying how it
+ * is performed. A `handle { ... } { ... }` block supplies the
+ * implementation for the effect names it lists, for the dynamic extent of
+ * its body only — outside that block (or for any effect the block doesn't
+ * mention), the effect remains unhandled.
+ */
+
+effect fetchUser(id)
+
+export async fn getUserName(id) {
+  return handle {
+    fetchUser: id => ({ id, name: `User ${id}` })
+  } {
+    return await fetchUser(id)
+  }
+}
+
+// No `handle { ... }` in scope: invoking the effect fails with a
+// descriptive error identifying exactly which effect was unhandled.
+export async fn getUserNameUnhandled(id) {
+  return await fetchUser(id)
+}

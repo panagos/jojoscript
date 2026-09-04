@@ -1,0 +1,37 @@
+/*
+ * Example 4 — `parallel()` as an effect.
+ *
+ * `parallel(n) |> map(fn)` is effect-backed: with no handler installed it
+ * behaves exactly as it always has (a bounded-concurrency worker pool).
+ * Installing a `PARALLEL` handler via `handle { PARALLEL: ... } { ... }`
+ * lets a different interpretation take over completely — here, a
+ * deterministic, strictly sequential one that also records the order
+ * items were processed in, useful for tests/debugging.
+ */
+
+export async fn processItemsConcurrently(items) {
+  return items
+    |> parallel(4)
+    |> map(async n => n * 2)
+    |> toArrayAsync
+    |> await
+}
+
+export async fn processItemsWithRecordedOrder(items, order) {
+  return handle {
+    PARALLEL: async ({ items, fn }) => {
+      results := []
+      for await (const item of items) {
+        order.push(item)
+        results.push(await fn(item))
+      }
+      return results
+    }
+  } {
+    return items
+      |> parallel(4)
+      |> map(async n => n * 2)
+      |> toArrayAsync
+      |> await
+  }
+}
