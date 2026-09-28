@@ -237,6 +237,26 @@ becomes:
 divide(100, value)
 ```
 
+#### Property access stages
+
+A pipeline stage may also start with a dot to read a field or invoke a method
+on the piped value directly:
+
+```jojo
+users |> .length
+name |> .trim() |> .toUpperCase()
+```
+
+becomes:
+
+```js
+users.length
+name.trim().toUpperCase()
+```
+
+This is handy for compact pipelines where the previous value is the receiver of
+an ordinary JavaScript property or method call.
+
 #### `catch` / `orElse` control stages
 
 `catch` and `orElse` provide inline error handling without leaving pipeline

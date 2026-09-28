@@ -16,6 +16,19 @@ users
 
 The pipeline is evaluated element-by-element. `toArray` is the explicit materialization boundary.
 
+Property access is also supported in pipeline stages when the result of the
+preceding pipeline should be used as the receiver of a JavaScript member:
+
+```jojo
+name
+  |> .trim()
+  |> .toUpperCase()
+  |> .slice(0, 8)
+```
+
+This compiles to ordinary JavaScript member access and method calls without
+changing the rest of the pipeline syntax.
+
 ## Lazy stages
 
 - `map`

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.1 — Property access in pipelines
+
+### Language
+
+- Added property-access pipeline stages for JavaScript member access and calls,
+  such as `users |> .length` and `name |> .trim() |> .toUpperCase()`. These
+  compile to ordinary member access/method-call chains while preserving the
+  rest of the pipeline syntax.
+
+### Examples and tests
+
+- Added compiler coverage for property-access pipeline stages in the core test
+  suite.
+- Added an example module and test exercising member access in pipelines as a
+  compact, readable pipeline idiom.
+
 ## 0.9.0 — Effect Handlers
 
 ### Language
