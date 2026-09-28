@@ -58,6 +58,16 @@ test('await stage does not take arguments', () => {
   )
 })
 
+test('property stage reads a field from the piped value', () => {
+  const result = compile('result := users |> .length')
+  assert.match(result, /const result = users\.length/)
+})
+
+test('method call property stage invokes the member function on the piped value', () => {
+  const result = compile('result := name |> .trim() |> .toUpperCase()')
+  assert.match(result, /const result = name\.trim\(\)\.toUpperCase\(\)/)
+})
+
 test('await, catch and orElse are never imported from the runtime', () => {
   const result = compile('result := risky() |> catch(handleError)')
   assert.ok(!result.includes('jojoscript/runtime'))

@@ -112,8 +112,17 @@ function splitArguments(tokens) {
   return result
 }
 
+function isPropertyAccessName(name) {
+  return /^\.[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(name)
+}
+
 function parseStage(source, tokens) {
   if (!tokens.length) throw new SyntaxError('Empty pipeline stage')
+
+  const bareName = text(source, tokens).trim()
+  if (isPropertyAccessName(bareName)) {
+    return { name: bareName, args: [], propertyCall: false }
+  }
 
   if (tokens.every((token, index) =>
     index % 2 === 0
@@ -144,6 +153,14 @@ function parseStage(source, tokens) {
   }
 
   const name = text(source, tokens.slice(0, openIndex)).trim()
+
+  if (isPropertyAccessName(name)) {
+    const args = splitArguments(
+      tokens.slice(openIndex + 1, closeIndex)
+    ).map(argument => text(source, argument).trim())
+
+    return { name, args, propertyCall: true }
+  }
 
   if (!/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(name)) {
     throw new SyntaxError(`Invalid pipeline function: ${name}`)
@@ -307,6 +324,25 @@ export function emitPipeline(pipeline, options = {}) {
   for (const stage of stages) {
     if (PIPELINE_CONTROL_STAGES.has(stage.name)) {
       expression = emitControlStage(stage, expression)
+      continue
+    }
+
+    if (stage.name.startsWith('.')) {
+      const args = stage.args.slice()
+      const placeholderIndex = args.indexOf('_')
+      if (placeholderIndex !== -1) {
+        args[placeholderIndex] = expression
+      }
+
+      if (stage.propertyCall || args.length > 0) {
+        expression = `${expression}${stage.name}(${args.join(', ')})`
+      } else {
+        expression = `${expression}${stage.name}`
+      }
+
+      if (options.profile) {
+        expression = `traceNode(${expression}, ${metaLiteral(pipelineId, stage.nodeId, stage.name)})`
+      }
       continue
     }
 
