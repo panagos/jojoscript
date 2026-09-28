@@ -1,0 +1,12 @@
+export fn labelLength(title) {
+  return title
+    |> .trim()
+    |> .length
+}
+
+export fn headline(title) {
+  return title
+    |> .trim()
+    |> .toUpperCase()
+    |> .slice(0, 12)
+}

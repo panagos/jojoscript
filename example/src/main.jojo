@@ -10,6 +10,7 @@ import { httpStatusLabel, classifyPostLength, describeUserRole } from "./applica
 import { add, formatPrice, isAdult } from "./application/typed-functions.js"
 import { subtractFromBudget } from "./application/pipeline-placeholder-example.js"
 import { parseConfigValue, safeDivide } from "./application/pipeline-error-handling-example.js"
+import { labelLength, headline } from "./application/pipeline-property-example.js"
 import {
   groupPostsByUser,
   splitByPublished,
@@ -57,6 +58,8 @@ async fn printFeatureShowcase(posts: posts) {
   console.log("typed function: isAdult(16) ->", isAdult(16))
 
   console.log("pipeline placeholder: subtractFromBudget(30, 100) ->", subtractFromBudget(30, 100))
+  console.log("pipeline property access: labelLength(\"  hello world  \") ->", labelLength("  hello world  "))
+  console.log("pipeline property access: headline(\"  hello world  \") ->", headline("  hello world  "))
   console.log("pipeline orElse: parseConfigValue(\"not json\") ->", parseConfigValue("not json"))
   console.log("pipeline catch: safeDivide(1, 0) ->", safeDivide(1, 0))
 
