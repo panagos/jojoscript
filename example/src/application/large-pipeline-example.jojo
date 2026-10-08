@@ -1,0 +1,51 @@
+import {
+  map,
+  filter,
+  sort,
+  unique,
+  take,
+  skip,
+  flatMap,
+  reduce,
+  count,
+  first,
+  find,
+  some,
+  every,
+  chunk,
+  window,
+  zip,
+  scan,
+  sortBy,
+  distinctBy,
+  tap,
+  batch
+} from "jojoscript/runtime"
+
+export fn buildLargePipelineReport(values) {
+  return values
+    |> pass
+    |> map(value => value + 1)
+    |> filter(value => value % 2 === 0)
+    |> map(value => value * 2)
+    |> filter(value => value > 5)
+    |> sort((a, b) => a - b)
+    |> unique()
+    |> skip(1)
+    |> take(5)
+    |> flatMap(value => [value, value + 1])
+    |> map(value => value.toString())
+    |> filter(value => value !== "10")
+    |> map(value => Number(value))
+    |> batch(2)
+    |> map(group => group.reduce((sum, value) => sum + value, 0))
+    |> scan((total, value) => total + value, 0)
+    |> distinctBy(value => value % 3)
+    |> sortBy(value => value)
+    |> tap(value => value)
+    |> map(value => value + 1)
+    |> filter(value => value > 10)
+    |> chunk(2)
+    |> map(group => group.length)
+    |> count()
+}
