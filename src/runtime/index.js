@@ -67,4 +67,9 @@ export {
   MemoryEffectLog,
   FileEffectLog
 } from './effect-log.js'
+export {
+  McpServer,
+  createMcpServer,
+  runMcpStdioServer
+} from './mcp.js'
 
