@@ -1,4 +1,4 @@
-# JojoScript 0.9.1
+# JojoScript 0.9.2
 
 JojoScript is a small JavaScript-compatible language and runtime for
 expressive, composable pipelines. It adds lightweight syntax for declarations,

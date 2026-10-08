@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.2 — Identity pipeline stage
+
+### Language
+
+- Added a `pass` pipeline stage, which preserves the current value without
+  requiring a runtime import or changing the pipeline result.
+- `pass` supports both `value |> pass` and `value |> pass(_)`.
+
+### Examples and tests
+
+- Added compiler tests covering bare and placeholder `pass` stages.
+- Added a large pipeline example with more than twenty stages to demonstrate
+  pipeline composition.
+
 ## 0.9.1 — Property access in pipelines
 
 ### Language
