@@ -327,6 +327,14 @@ export function emitPipeline(pipeline, options = {}) {
       continue
     }
 
+    if (stage.name === 'pass') {
+      if (stage.args.length === 0) continue
+      if (stage.args.length === 1 && stage.args[0] === '_') {
+        continue
+      }
+      throw new SyntaxError('the `pass` pipeline stage takes no arguments or a single `_` placeholder')
+    }
+
     if (stage.name.startsWith('.')) {
       const args = stage.args.slice()
       const placeholderIndex = args.indexOf('_')
