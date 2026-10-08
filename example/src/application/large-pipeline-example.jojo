@@ -23,7 +23,9 @@ import {
 } from "jojoscript/runtime"
 
 export fn buildLargePipelineReport(values) {
-  return values
+  console.log("Input:", values.join(","))
+
+  result := values
     |> pass
     |> map(value => value + 1)
     |> filter(value => value % 2 === 0)
@@ -48,4 +50,7 @@ export fn buildLargePipelineReport(values) {
     |> chunk(2)
     |> map(group => group.length)
     |> count()
+
+  console.log("Result:", result)
+  return result
 }

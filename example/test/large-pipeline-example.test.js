@@ -10,3 +10,19 @@ test("large pipeline composes more than twenty stages and preserves the input", 
   assert.equal(result, 1)
   assert.deepEqual(values, [1, 2, 3, 4, 5, 6, 7, 8, 9])
 })
+
+test("large pipeline example prints its input and result", () => {
+  const values = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  const output = []
+  const originalLog = console.log
+
+  console.log = (...args) => output.push(args.join(" "))
+  try {
+    buildLargePipelineReport(values)
+  } finally {
+    console.log = originalLog
+  }
+
+  assert.equal(output[0], "Input: 1,2,3,4,5,6,7,8,9")
+  assert.equal(output[1], "Result: 1")
+})
