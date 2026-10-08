@@ -1,0 +1,11 @@
+import { createMcpServer, runMcpStdioServer } from "jojoscript/runtime"
+
+server := createMcpServer({
+  tools: {
+    echo: args => ({
+      content: [{ type: "text", text: args.value }]
+    })
+  }
+})
+
+await runMcpStdioServer(server)
