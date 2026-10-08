@@ -1,4 +1,4 @@
-# JojoScript 0.9.2
+# JojoScript 0.9.3
 
 JojoScript is a small JavaScript-compatible language and runtime for
 expressive, composable pipelines. It adds lightweight syntax for declarations,
@@ -6,8 +6,8 @@ functions, pattern matching, type annotations, and pipelines while preserving
 ordinary JavaScript. Its compiler uses a lightweight lexer and source
 transformations rather than a full AST, keeping the toolchain compact. The
 project also provides lazy and async collection operators, checkpointing,
-retries, metrics, pipeline graphing, CLI workflows, effect handlers, and
-VS Code editor support.
+retries, metrics, pipeline graphing, CLI workflows, effect handlers, MCP
+support, and VS Code editor support.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and
 [example/](example/) for a complete runnable application that exercises
@@ -738,6 +738,29 @@ from `@panagos/jojoscript/runtime` (for a stage that's only ever called directly
 never through `|>`) and also uses pipeline syntax with overlapping names,
 the compiler merges the auto-imported names into the existing import
 instead of emitting a second, colliding import declaration.
+
+### MCP support
+
+JojoScript includes a small MCP-style JSON-RPC runtime for Node.js. It does
+not add MCP-specific language syntax; tool implementations remain ordinary
+JavaScript functions.
+
+```js
+import { createMcpServer, runMcpStdioServer } from "jojoscript/runtime"
+
+const server = createMcpServer({
+  tools: {
+    echo: args => ({ content: [{ type: "text", text: args.value }] })
+  }
+})
+
+await runMcpStdioServer(server)
+```
+
+The server accepts `tools/call` requests and returns JSON-RPC responses on
+standard output. It is intentionally minimal: supporting tool registration,
+request dispatch, structured errors, and the stdin/stdout transport without any
+external NPM packages.
 
 ## Example
 

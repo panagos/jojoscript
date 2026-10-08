@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.3 — MCP runtime support
+
+### Runtime
+
+- Added `McpServer`, `createMcpServer`, and `runMcpStdioServer` to the
+  runtime package.
+- Added minimal MCP-style `tools/call` request dispatch with JSON-RPC
+  validation and structured error responses.
+- Added stdio transport support for sending newline-delimited JSON-RPC
+  messages to and from Node.js processes.
+
+### Examples and tests
+
+- Added an MCP stdio example and end-to-end runtime test.
+
 ## 0.9.2 — Identity pipeline stage
 
 ### Language
