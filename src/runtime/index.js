@@ -72,4 +72,8 @@ export {
   createMcpServer,
   runMcpStdioServer
 } from './mcp.js'
-
+export {
+  A2AClient,
+  A2AError,
+  createA2AClient
+} from './a2a.js'
