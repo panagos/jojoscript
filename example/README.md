@@ -26,6 +26,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/destructuring-example.jojo` | Destructuring & multi-binding declarations | `{ a, b } := x`, `[h, ...t] := x`, `a, b := 1, 2` |
 | `application/match-example.jojo` | `match` expression | Value/boolean-pattern matching with a default `_` arm |
 | `application/typed-functions.jojo` | Optional type annotations | Compiled to JSDoc, never checked at compile time |
+| `application/a2a-enrichment.jojo` | A2A client | Discovers a remote agent, sends an enrichment message, and polls its task |
 | `application/pipeline-placeholder-example.jojo` | Pipeline `_` placeholder | Controls where the piped value lands in a stage's arguments |
 | `application/pipeline-error-handling-example.jojo` | Pipeline `catch` / `orElse` | Inline error handling without leaving pipeline syntax |
 | `application/async-pipeline-example.jojo` | `mapAsync` / `filterAsync` / `toArrayAsync` / `\|> await` | Async iterator pipelines |
@@ -86,4 +87,3 @@ The pipeline prints `[20,40,60]`. `resume` reuses the `filtered` checkpoint
 created by `run`; `replay --from filtered` explicitly starts from that same
 checkpoint. Checkpoints are stored in `.jojo-checkpoints/` in the current
 directory and can be removed to reset the demo.
-

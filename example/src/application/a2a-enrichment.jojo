@@ -1,0 +1,50 @@
+import { createA2AClient, filter, flatMap, map, reduce, toArray } from "jojoscript/runtime"
+
+fn buildEnrichmentPrompt(record) {
+  return [
+    { label: "ID", value: record.id },
+    { label: "Title", value: record.title }
+  ]
+    |> map(field => `${field.label}: ${field.value}`)
+    |> reduce(
+      (prompt, field) => `${prompt}\n${field}`,
+      "Return JSON fields that enrich this record:"
+    )
+}
+
+export async fn enrichRecord(record, agentUrl) {
+  client := createA2AClient(agentUrl)
+  await client.discover()
+
+  mutable task := await client.sendMessage({
+    role: "ROLE_USER",
+    parts: [{ text: buildEnrichmentPrompt(record) }]
+  })
+
+  if (task?.id && task.status && task.status.state !== "TASK_STATE_COMPLETED") {
+    task = await client.waitForTask(task.id)
+  }
+
+  if (task?.status && task.status.state !== "TASK_STATE_COMPLETED") {
+    throw new Error(`A2A enrichment task ended in state ${task.status.state}`)
+  }
+
+  mutable parts := []
+  if (task?.artifacts) {
+    parts = task.artifacts
+      |> flatMap(artifact => artifact.parts ?? [])
+      |> toArray
+  } else {
+    parts = task?.parts ?? []
+  }
+
+  resultTexts := parts
+    |> filter(part => typeof part.text === "string")
+    |> map(part => part.text)
+    |> toArray
+
+  resultText := resultTexts[0]
+  if (!resultText) throw new Error("A2A enrichment agent returned no text result")
+
+  return { ...record, ...JSON.parse(resultText) }
+}
