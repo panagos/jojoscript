@@ -1,7 +1,7 @@
 {
   "name": "@panagos/jojoscript",
   "version": "0.10.0",
-  "description": "A tiny JavaScript-compatible language layer with Jojo syntax and pipelines.",
+  "description": "A lightweight, JavaScript-compatible language and runtime for data pipelines and agent workflows.",
   "license": "Unlicense",
   "type": "module",
   "bin": {
