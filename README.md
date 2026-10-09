@@ -1,7 +1,7 @@
 # JojoScript 0.10.0
 
-JojoScript is a small JavaScript-compatible language and runtime for
-expressive, composable pipelines. It adds lightweight syntax for declarations,
+JojoScript is a lightweight, JavaScript-compatible language and runtime for
+data pipelines and agent workflows. It adds syntax for declarations,
 functions, pattern matching, type annotations, and pipelines while preserving
 ordinary JavaScript. Its compiler uses a lightweight lexer and source
 transformations rather than a full AST, keeping the toolchain compact. The
