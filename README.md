@@ -1,4 +1,4 @@
-# JojoScript 0.9.3
+# JojoScript 0.10.0
 
 JojoScript is a small JavaScript-compatible language and runtime for
 expressive, composable pipelines. It adds lightweight syntax for declarations,
@@ -6,8 +6,8 @@ functions, pattern matching, type annotations, and pipelines while preserving
 ordinary JavaScript. Its compiler uses a lightweight lexer and source
 transformations rather than a full AST, keeping the toolchain compact. The
 project also provides lazy and async collection operators, checkpointing,
-retries, metrics, pipeline graphing, CLI workflows, effect handlers, MCP
-support, and VS Code editor support.
+retries, metrics, pipeline graphing, CLI workflows, effect handlers, MCP and
+A2A support, and VS Code editor support.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and
 [example/](example/) for a complete runnable application that exercises
@@ -762,6 +762,31 @@ standard output. It is intentionally minimal: supporting tool registration,
 request dispatch, structured errors, and the stdin/stdout transport without any
 external NPM packages.
 
+### A2A client
+
+JojoScript provides a dependency-free A2A 1.0 JSON-RPC client. It discovers a
+remote agent through `/.well-known/agent-card.json`, selects its advertised
+JSON-RPC interface, sends messages, and retrieves/polls task results.
+
+```js
+import { createA2AClient } from "jojoscript/runtime"
+
+const agent = createA2AClient("https://agent.example")
+await agent.discover()
+
+const task = await agent.sendMessage({
+  role: "ROLE_USER",
+  parts: [{ text: JSON.stringify({ record: { id: "item-1" } }) }]
+})
+const result = await agent.waitForTask(task.id)
+```
+
+`sendMessage` and `getTask` map to the A2A `SendMessage` and `GetTask`
+operations. `waitForTask` polls until the task reaches a terminal or
+interrupted state, with a five-minute default timeout. Pass an alternate
+`fetch` function and headers in the client options when integrating with a
+custom transport or authenticated agent.
+
 ## Example
 
 See [example/](example/). It is a complete runnable project covering every
@@ -776,6 +801,10 @@ examples (each with a matching test under `example/test/`): basic effects,
 running the same program with multiple handlers, deterministic testing,
 `parallel()` as an effect, effect visibility in the execution plan, and the
 checkpoint/resume interaction.
+
+[example/src/application/a2a-enrichment.jojo](example/src/application/a2a-enrichment.jojo)
+demonstrates enriching a record through A2A discovery, message dispatch, and
+task polling against a local test agent.
 
 ```bash
 cd example
@@ -849,4 +878,3 @@ resulting `.vsix` locally.
   mentioned as a long-term direction (`IO`, `HTTP`, `FILE`, `DATABASE`,
   `SLEEP`, `TIME`, `RANDOM`, `CHECKPOINT`) are not implemented — user-defined
   `effect` declarations cover the same need today.
-

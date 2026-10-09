@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 — A2A client support
+
+### Runtime
+
+- Added a dependency-free A2A 1.0 JSON-RPC client with Agent Card discovery,
+  message sending, task retrieval, and bounded task polling.
+- Exported `A2AClient`, `A2AError`, and `createA2AClient` from the runtime.
+
+### Examples and tests
+
+- Added a JojoScript enrichment example that formats record details with
+  pipelines, sends them to an A2A agent, and merges its task result.
+- Added runtime unit tests and a local HTTP-agent integration test for the
+  example.
+
 ## 0.9.3 — MCP runtime support
 
 ### Runtime
