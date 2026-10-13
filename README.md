@@ -1,13 +1,12 @@
 # JojoScript 0.10.0
 
-JojoScript is a lightweight, JavaScript-compatible language and runtime for
-data pipelines and agent workflows. It adds syntax for declarations,
-functions, pattern matching, type annotations, and pipelines while preserving
-ordinary JavaScript. Its compiler uses a lightweight lexer and source
-transformations rather than a full AST, keeping the toolchain compact. The
-project also provides lazy and async collection operators, checkpointing,
-retries, metrics, pipeline graphing, CLI workflows, effect handlers, MCP and
-A2A support, and VS Code editor support.
+JojoScript is a lightweight language and runtime for data pipelines and agent
+workflows, built on JavaScript.
+
+It combines expressive pipeline syntax, lazy data processing, resumable
+execution and effect handling with MCP tool serving and A2A agent
+communication. It compiles to ordinary JavaScript and keeps the familiar
+JavaScript ecosystem accessible, without requiring a heavyweight framework.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history and
 [example/](example/) for a complete runnable application that exercises
