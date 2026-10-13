@@ -18,6 +18,8 @@
   abortable polling with bounded backoff and timeouts.
 - Validated file-backed checkpoint records before resume, rejecting malformed
   metadata or inconsistent item counts with a clear error.
+- Added opt-in effect authorization policies that fail closed before handlers
+  execute and cannot be bypassed by nested handlers, retries, or replay.
 
 ### Examples and tests
 
@@ -31,6 +33,8 @@
   before a failed checkpoint commit is retried, while completed checkpoints
   prevent repeat delegation.
 - Added a compiled checkpoint-integrity example and regression test.
+- Added a procurement capability-policy example that blocks invitation and
+  approval side effects while allowing tender and supplier reads.
 
 ## 0.9.3 — MCP runtime support
 

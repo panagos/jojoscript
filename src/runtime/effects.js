@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { getCurrentContext } from './execution-context.js'
 
 /*
  * Algebraic effects / effect handlers runtime.
@@ -23,6 +24,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 const handlerStorage = new AsyncLocalStorage()
 const invocationStorage = new AsyncLocalStorage()
+const authorizationStorage = new AsyncLocalStorage()
 
 /*
  * name -> { name, params, sideEffecting, replayable, builtin? }.
@@ -54,6 +56,17 @@ export class RecursiveEffectError extends Error {
     super(`Effect handler for "${name}" recursively invoked the same effect ("${name}")`)
     this.name = 'RecursiveEffectError'
     this.effectName = name
+  }
+}
+
+export class EffectAuthorizationError extends Error {
+  constructor(name, reason, options = {}) {
+    const prefix = options.failed ? 'Effect authorization failed' : 'Effect authorization denied'
+    super(`${prefix} for "${name}": ${reason}`, { cause: options.cause })
+    this.name = 'EffectAuthorizationError'
+    this.effectName = name
+    this.reason = reason
+    this.retryable = false
   }
 }
 
@@ -109,6 +122,10 @@ function currentFrames() {
   return handlerStorage.getStore() ?? []
 }
 
+function currentAuthorizationPolicies() {
+  return authorizationStorage.getStore() ?? []
+}
+
 /*
  * Installs `handlers` (an object of `name -> handlerFn | { handle,
  * deterministic }`) for the dynamic extent of `fn`, then restores whatever
@@ -142,6 +159,51 @@ export function withHandlers(handlers, fn) {
 }
 
 /*
+ * Installs a capability policy for the dynamic extent of `fn`. Nested
+ * policies compose restrictively: every active policy must explicitly allow
+ * an invocation, so an inner handler or policy cannot bypass an outer
+ * boundary.
+ */
+export function withAuthorization(policy, fn) {
+  if (typeof policy !== 'function') {
+    throw new TypeError('withAuthorization requires an authorization function')
+  }
+
+  return authorizationStorage.run([...currentAuthorizationPolicies(), policy], fn)
+}
+
+async function authorizeEffect(name, args) {
+  const policies = currentAuthorizationPolicies()
+  if (policies.length === 0) return
+
+  const invocation = {
+    name,
+    args: [...args],
+    effect: effectRegistry.get(name) ?? null,
+    context: getCurrentContext() ?? null
+  }
+
+  for (const policy of policies) {
+    let decision
+    try {
+      decision = await policy(invocation)
+    } catch (error) {
+      throw new EffectAuthorizationError(name, `authorization callback failed: ${error?.message ?? error}`, {
+        failed: true,
+        cause: error
+      })
+    }
+
+    if (decision === true || decision?.allowed === true) continue
+
+    const reason = typeof decision?.reason === 'string'
+      ? decision.reason
+      : 'policy did not explicitly allow this invocation'
+    throw new EffectAuthorizationError(name, reason)
+  }
+}
+
+/*
  * Resolves and invokes the effect named `name` against the innermost
  * handler that declares it. Always returns a Promise (even for a
  * synchronous handler) so calling code never needs to know whether the
@@ -158,6 +220,8 @@ export async function performEffect(name, args) {
   if (!frame) {
     throw new UnhandledEffectError(name)
   }
+
+  await authorizeEffect(name, args)
 
   const entry = frame.handlers[name]
   const nextInFlight = new Set(inFlight)

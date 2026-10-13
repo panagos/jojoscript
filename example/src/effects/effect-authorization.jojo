@@ -1,0 +1,53 @@
+import { withAuthorization } from "jojoscript/runtime"
+
+effect readTender(id)
+effect lookupSupplier(id)
+effect sendSupplierInvitation(supplier)
+effect approveOffer(tender)
+
+fn procurementPolicy(invocation) {
+  if (invocation.name === "readTender" || invocation.name === "lookupSupplier") {
+    return true
+  }
+
+  if (invocation.name === "sendSupplierInvitation") {
+    return {
+      allowed: false,
+      reason: "Supplier invitations require the invitation capability"
+    }
+  }
+
+  return {
+    allowed: false,
+    reason: "Offer approvals require the approval capability"
+  }
+}
+
+export async fn reviewTender(tenderId, invitations, approvals) {
+  return await withAuthorization(procurementPolicy, async () => {
+    return handle {
+      readTender: id => ({ id, supplierId: "supplier-1" }),
+      lookupSupplier: id => ({ id, name: "Northwind Supplies" }),
+      sendSupplierInvitation: supplier => invitations.push(supplier),
+      approveOffer: tender => approvals.push(tender)
+    } {
+      tender := await readTender(tenderId)
+      supplier := await lookupSupplier(tender.supplierId)
+      mutable denied := []
+
+      try {
+        await sendSupplierInvitation(supplier)
+      } catch (error) {
+        denied.push(error.reason)
+      }
+
+      try {
+        await approveOffer(tender)
+      } catch (error) {
+        denied.push(error.reason)
+      }
+
+      return { tender, supplier, denied }
+    }
+  })
+}

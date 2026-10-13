@@ -4,7 +4,12 @@ import assert from 'node:assert/strict'
 import { checkpoint } from '../src/runtime/checkpoint.js'
 import { MemoryCheckpointStore } from '../src/runtime/checkpoint-store.js'
 import { ExecutionContext, runInContext } from '../src/runtime/execution-context.js'
-import { defineEffect, withHandlers } from '../src/runtime/effects.js'
+import {
+  defineEffect,
+  withAuthorization,
+  withHandlers,
+  EffectAuthorizationError
+} from '../src/runtime/effects.js'
 
 /*
  * Documents and tests the semantics of effects placed *before* a
@@ -130,4 +135,36 @@ test('a crash before the checkpoint completes means the upstream effect WILL run
 
   assert.deepEqual(retried, [{ id: 1 }, { id: 2 }, { id: 3 }])
   assert.deepEqual(calls, [1, 2, 1, 2, 3], 'ids 1 and 2 were fetched twice: no exactly-once guarantee')
+})
+
+test('an incomplete checkpoint rechecks authorization before retrying an upstream effect', async () => {
+  const sendInvitation = defineEffect('sendInvitation__checkpoint_authorization', ['id'])
+  const ctx = contextWith({ pipelineId: 'checkpoint-authorization-pipeline' })
+  let handlerCalls = 0
+
+  async function* failAfterInvitation() {
+    yield await sendInvitation('supplier-1')
+    throw new Error('simulated crash after side effect')
+  }
+
+  await assert.rejects(
+    () => withHandlers(
+      { sendInvitation__checkpoint_authorization: () => { handlerCalls++; return 'sent' } },
+      () => runInContext(ctx, () => collect(checkpoint(failAfterInvitation(), 'invitations', {})))
+    ),
+    /simulated crash/
+  )
+  assert.equal(await ctx.checkpointStore.exists(ctx.pipelineId, 'invitations'), false)
+
+  await assert.rejects(
+    () => withAuthorization(
+      () => false,
+      () => withHandlers(
+        { sendInvitation__checkpoint_authorization: () => { handlerCalls++; return 'sent' } },
+        () => runInContext(ctx, () => collect(checkpoint(failAfterInvitation(), 'invitations', {})))
+      )
+    ),
+    EffectAuthorizationError
+  )
+  assert.equal(handlerCalls, 1)
 })

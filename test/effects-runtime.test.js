@@ -4,12 +4,18 @@ import assert from 'node:assert/strict'
 import {
   defineEffect,
   withHandlers,
+  withAuthorization,
   describeEffect,
   describeHandlers,
   UnhandledEffectError,
   EffectHandlerError,
-  RecursiveEffectError
+  RecursiveEffectError,
+  EffectAuthorizationError,
+  recordHandlers,
+  replayHandlers
 } from '../src/runtime/effects.js'
+import { MemoryEffectLog } from '../src/runtime/effect-log.js'
+import { retry } from '../src/runtime/retry.js'
 
 test('invoking an effect with no active handler throws a descriptive UnhandledEffectError', async () => {
   const fetchUser = defineEffect('fetchUser__unhandled', ['id'])
@@ -236,4 +242,174 @@ test('the PARALLEL builtin effect is registered by default (without any user eff
   const descriptor = describeEffect('PARALLEL')
   assert.ok(descriptor)
   assert.equal(descriptor.builtin, true)
+})
+
+test('an authorization policy permits an effect before its handler executes', async () => {
+  const readTender = defineEffect('readTender__authorized', ['id'])
+  const decisions = []
+
+  const result = await withAuthorization(
+    invocation => {
+      decisions.push(invocation)
+      return { allowed: true }
+    },
+    () => withHandlers({ readTender__authorized: id => ({ id }) }, () => readTender('tender-1'))
+  )
+
+  assert.deepEqual(result, { id: 'tender-1' })
+  assert.equal(decisions.length, 1)
+  assert.equal(decisions[0].name, 'readTender__authorized')
+  assert.deepEqual(decisions[0].args, ['tender-1'])
+  assert.equal(decisions[0].effect.name, 'readTender__authorized')
+})
+
+test('a denied or missing authorization decision prevents the handler from executing', async () => {
+  const sendInvitation = defineEffect('sendInvitation__denied', ['supplier'])
+  let handlerCalls = 0
+
+  for (const policy of [
+    () => ({ allowed: false, reason: 'Invitation capability is not granted' }),
+    () => undefined
+  ]) {
+    await assert.rejects(
+      () => withAuthorization(
+        policy,
+        () => withHandlers(
+          { sendInvitation__denied: () => { handlerCalls++; return 'sent' } },
+          () => sendInvitation('supplier-1')
+        )
+      ),
+      error => {
+        assert.ok(error instanceof EffectAuthorizationError)
+        assert.equal(error.effectName, 'sendInvitation__denied')
+        return true
+      }
+    )
+  }
+
+  assert.equal(handlerCalls, 0)
+})
+
+test('asynchronous authorization is awaited and authorization failures preserve their cause', async () => {
+  const approveOffer = defineEffect('approveOffer__async', ['id'])
+  let handlerCalls = 0
+
+  const approved = await withAuthorization(
+    async () => {
+      await new Promise(resolve => setTimeout(resolve, 1))
+      return true
+    },
+    () => withHandlers({ approveOffer__async: () => { handlerCalls++; return 'approved' } }, () => approveOffer('offer-1'))
+  )
+  assert.equal(approved, 'approved')
+
+  const policyFailure = new Error('policy backend unavailable')
+  await assert.rejects(
+    () => withAuthorization(
+      async () => { throw policyFailure },
+      () => withHandlers({ approveOffer__async: () => { handlerCalls++; return 'approved' } }, () => approveOffer('offer-2'))
+    ),
+    error => {
+      assert.ok(error instanceof EffectAuthorizationError)
+      assert.equal(error.cause, policyFailure)
+      assert.match(error.message, /authorization callback failed/)
+      return true
+    }
+  )
+  assert.equal(handlerCalls, 1)
+})
+
+test('unhandled effects remain unhandled before authorization runs', async () => {
+  const missing = defineEffect('missing__authorization', [])
+  let policyCalls = 0
+
+  await assert.rejects(
+    () => withAuthorization(() => { policyCalls++; return false }, () => missing()),
+    UnhandledEffectError
+  )
+
+  assert.equal(policyCalls, 0)
+})
+
+test('outer authorization scopes govern nested handlers and every parallel invocation', async () => {
+  const lookupSupplier = defineEffect('lookupSupplier__nested', ['id'])
+  let outerCalls = 0
+  let innerCalls = 0
+
+  const result = await withAuthorization(
+    () => { outerCalls++; return true },
+    () => withAuthorization(
+      () => { innerCalls++; return true },
+      () => withHandlers(
+        { lookupSupplier__nested: id => `outer:${id}` },
+        () => withHandlers(
+          { lookupSupplier__nested: id => `inner:${id}` },
+          () => Promise.all([lookupSupplier('one'), lookupSupplier('two')])
+        )
+      )
+    )
+  )
+
+  assert.deepEqual(result, ['inner:one', 'inner:two'])
+  assert.equal(outerCalls, 2)
+  assert.equal(innerCalls, 2)
+})
+
+test('retries and replay handlers cannot bypass authorization', async () => {
+  const invite = defineEffect('invite__retry_replay', ['id'])
+  let policyCalls = 0
+  let handlerCalls = 0
+
+  const retried = retry(() => invite('supplier-1'), { attempts: 2 })
+  const result = await withAuthorization(
+    () => { policyCalls++; return true },
+    () => withHandlers(
+      {
+        invite__retry_replay: () => {
+          handlerCalls++
+          if (handlerCalls === 1) throw new Error('temporary failure')
+          return 'sent'
+        }
+      },
+      retried
+    )
+  )
+
+  assert.equal(result, 'sent')
+  assert.equal(policyCalls, 2)
+
+  const log = new MemoryEffectLog()
+  await withHandlers(
+    recordHandlers({ invite__retry_replay: () => 'recorded' }, log),
+    () => invite('supplier-2')
+  )
+
+  await assert.rejects(
+    () => withAuthorization(
+      () => false,
+      () => withHandlers(replayHandlers(['invite__retry_replay'], log), () => invite('supplier-2'))
+    ),
+    EffectAuthorizationError
+  )
+
+  const replayed = await withHandlers(
+    replayHandlers(['invite__retry_replay'], log),
+    () => invite('supplier-2')
+  )
+  assert.equal(replayed, 'recorded')
+
+  let deniedPolicyCalls = 0
+  let deniedHandlerCalls = 0
+  await assert.rejects(
+    () => withAuthorization(
+      () => { deniedPolicyCalls++; return false },
+      () => withHandlers(
+        { invite__retry_replay: () => { deniedHandlerCalls++; return 'sent' } },
+        retry(() => invite('supplier-3'), { attempts: 3 })
+      )
+    ),
+    EffectAuthorizationError
+  )
+  assert.equal(deniedPolicyCalls, 1)
+  assert.equal(deniedHandlerCalls, 0)
 })

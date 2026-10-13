@@ -51,6 +51,7 @@ export {
 export {
   defineEffect,
   withHandlers,
+  withAuthorization,
   performEffect,
   describeEffect,
   listEffects,
@@ -60,7 +61,8 @@ export {
   replayHandlers,
   UnhandledEffectError,
   EffectHandlerError,
-  RecursiveEffectError
+  RecursiveEffectError,
+  EffectAuthorizationError
 } from './effects.js'
 export {
   EffectLog,

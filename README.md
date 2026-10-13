@@ -591,6 +591,51 @@ declared itself `deterministic`, and the declaring effect's `sideEffecting`/
 `replayable` metadata (from `effect name(params)`'s options, or defaults —
 `sideEffecting: true`, `replayable: false`).
 
+### Effect authorization
+
+Applications can place a capability policy around a `handle` block with
+`withAuthorization(policy, fn)`. The policy receives the declared effect
+name, a shallow copy of its arguments, declared effect metadata, and the
+current execution context. It must explicitly return `true` or
+`{ allowed: true }` for the handler to run.
+
+```js
+import { withAuthorization } from "@panagos/jojoscript/runtime"
+
+const result = await withAuthorization(
+  invocation => invocation.name === "readTender"
+    ? true
+    : { allowed: false, reason: "Capability is not granted" },
+  () => withHandlers({
+    readTender: id => ({ id }),
+    approveOffer: offer => approve(offer)
+  }, () => program())
+)
+```
+
+Authorization is opt-in; programs that do not use `withAuthorization` retain
+their existing unrestricted effect behavior. When enabled, every active
+authorization scope must allow each resolved effect invocation before its
+handler starts. This means an inner `handle` block cannot bypass an outer
+policy. A missing, malformed, denied, or failed policy decision throws
+`EffectAuthorizationError`; denial is non-retryable, so `retry()` does not
+repeat it. An unhandled effect still throws `UnhandledEffectError` before any
+authorization policy runs.
+
+Authorization is evaluated before normal handlers, recording wrappers, and
+replay wrappers. Replay therefore does not bypass a policy, and a checkpoint
+resume only avoids authorization when it restores a completed checkpoint
+without invoking an upstream effect at all. Policies do not record arguments
+or decisions automatically, and this mechanism is not a sandbox: ordinary
+JavaScript and operations that do not pass through a declared effect are
+outside its enforcement boundary. Do not derive permission from model or
+remote-agent output; make policy decisions in trusted application code.
+
+See
+[example/src/effects/effect-authorization.jojo](example/src/effects/effect-authorization.jojo)
+for a procurement workflow that permits reads and supplier lookup while
+blocking invitations and offer approval before their handlers run.
+
 ### Effects and checkpoint/resume
 
 Consider:
