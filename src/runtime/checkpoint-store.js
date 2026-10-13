@@ -29,6 +29,23 @@ function key(pipelineId, checkpointId) {
   return `${pipelineId}::${checkpointId}`
 }
 
+function validateCheckpoint(checkpoint, pipelineId, checkpointId) {
+  const invalid = reason => {
+    throw new Error(`Invalid checkpoint "${checkpointId}": ${reason}`)
+  }
+
+  if (!checkpoint || typeof checkpoint !== 'object' || Array.isArray(checkpoint)) {
+    invalid('expected an object')
+  }
+  if (checkpoint.pipelineId !== pipelineId) invalid('pipelineId does not match')
+  if (checkpoint.checkpointId !== checkpointId) invalid('checkpointId does not match')
+  if (!Array.isArray(checkpoint.items)) invalid('items must be an array')
+  if (checkpoint.itemCount !== undefined &&
+    (!Number.isInteger(checkpoint.itemCount) || checkpoint.itemCount !== checkpoint.items.length)) {
+    invalid('itemCount does not match items')
+  }
+}
+
 /*
  * In-memory store. Useful for tests and for short-lived processes where
  * durability across restarts is not required.
@@ -93,13 +110,15 @@ export class FileCheckpointStore extends CheckpointStore {
     const file = this.filePath(pipelineId, checkpointId)
     if (!fs.existsSync(file)) throw new Error(`Checkpoint not found: ${checkpointId}`)
 
-    let raw
+    let checkpoint
     try {
-      raw = fs.readFileSync(file, 'utf8')
-      return JSON.parse(raw)
+      checkpoint = JSON.parse(fs.readFileSync(file, 'utf8'))
     } catch (error) {
       throw new Error(`Corrupted checkpoint "${checkpointId}": ${error.message}`)
     }
+
+    validateCheckpoint(checkpoint, pipelineId, checkpointId)
+    return checkpoint
   }
 
   async exists(pipelineId, checkpointId) {

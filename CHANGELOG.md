@@ -16,6 +16,8 @@
 - Expanded A2A task handling with cancellation, bearer-token authentication,
   validated agent-card endpoints, classified transport/remote errors, and
   abortable polling with bounded backoff and timeouts.
+- Validated file-backed checkpoint records before resume, rejecting malformed
+  metadata or inconsistent item counts with a clear error.
 
 ### Examples and tests
 
@@ -28,6 +30,7 @@
 - Documented and tested the at-least-once boundary: remote A2A work completed
   before a failed checkpoint commit is retried, while completed checkpoints
   prevent repeat delegation.
+- Added a compiled checkpoint-integrity example and regression test.
 
 ## 0.9.3 — MCP runtime support
 

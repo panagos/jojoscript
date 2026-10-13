@@ -1,0 +1,8 @@
+import { checkpoint, toArrayAsync } from "jojoscript/runtime"
+
+export async fn checkpointRecords(records, checkpointName) {
+  return records
+    |> checkpoint(checkpointName)
+    |> toArrayAsync
+    |> await
+}

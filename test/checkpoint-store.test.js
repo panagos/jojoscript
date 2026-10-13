@@ -85,6 +85,28 @@ test('FileCheckpointStore surfaces a clear error for a corrupted checkpoint file
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+test('FileCheckpointStore rejects a valid JSON checkpoint with inconsistent item metadata', async () => {
+  const dir = tempDir()
+  const store = new FileCheckpointStore(dir)
+  const file = store.filePath('p1', 'c1')
+
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, JSON.stringify({
+    pipelineId: 'p1',
+    checkpointId: 'c1',
+    items: [1],
+    itemCount: 2,
+    createdAt: new Date().toISOString()
+  }))
+
+  await assert.rejects(
+    () => store.load('p1', 'c1'),
+    /Invalid checkpoint "c1": itemCount does not match items/
+  )
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test('FileCheckpointStore.list returns an empty array for an unknown pipeline', () => {
   const dir = tempDir()
   const store = new FileCheckpointStore(dir)

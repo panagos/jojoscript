@@ -628,6 +628,13 @@ actually safe. See
 [example/src/effects/checkpoint-resume.jojo](example/src/effects/checkpoint-resume.jojo)
 and `test/effects-checkpoint.test.js` for both cases exercised end to end.
 
+File-backed checkpoint records are validated when they are loaded: their
+pipeline ID and checkpoint ID must match the requested checkpoint, `items`
+must be an array, and a present `itemCount` must match the saved item count.
+Malformed records fail clearly rather than resuming with untrusted data. See
+[example/src/effects/checkpoint-integrity.jojo](example/src/effects/checkpoint-integrity.jojo)
+for a compiled pipeline test of this behavior.
+
 ### Record/replay
 
 A handler map can be wrapped to record every call (arguments + result) to
