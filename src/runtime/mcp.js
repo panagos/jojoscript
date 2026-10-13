@@ -159,7 +159,7 @@ export class McpServer {
   constructor({
     tools = {},
     name = 'JojoScript',
-    version = '0.10.0',
+    version = '0.10.1',
     protocolVersion = MCP_PROTOCOL_VERSION
   } = {}) {
     this.tools = new Map(

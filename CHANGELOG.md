@@ -1,12 +1,21 @@
 # Changelog
 
-## 0.10.0 — A2A client support
+## 0.10.1 — MCP and A2A integration
 
 ### Runtime
 
 - Added a dependency-free A2A 1.0 JSON-RPC client with Agent Card discovery,
   message sending, task retrieval, and bounded task polling.
 - Exported `A2AClient`, `A2AError`, and `createA2AClient` from the runtime.
+- Hardened the MCP-style stdio server with initialization/version negotiation,
+  `ping`, `tools/list`, schema-validated `tools/call`, notification handling,
+  and JSON-RPC parse and request errors.
+- Added MCP tool descriptors with input/output schemas and `CallToolResult`
+  validation, including structured content and handler errors marked with
+  `isError`.
+- Expanded A2A task handling with cancellation, bearer-token authentication,
+  validated agent-card endpoints, classified transport/remote errors, and
+  abortable polling with bounded backoff and timeouts.
 
 ### Examples and tests
 
@@ -14,6 +23,11 @@
   pipelines, sends them to an A2A agent, and merges its task result.
 - Added runtime unit tests and a local HTTP-agent integration test for the
   example.
+- Added an MCP-exposed, checkpointed A2A enrichment pipeline that returns
+  structured records and resumes completed batches.
+- Documented and tested the at-least-once boundary: remote A2A work completed
+  before a failed checkpoint commit is retried, while completed checkpoints
+  prevent repeat delegation.
 
 ## 0.9.3 — MCP runtime support
 

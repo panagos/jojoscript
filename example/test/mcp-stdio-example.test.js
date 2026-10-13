@@ -52,7 +52,7 @@ test("the MCP-style server initializes and exposes a schema-defined tool", async
       result: {
         protocolVersion: "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "JojoScript", version: "0.10.0" }
+        serverInfo: { name: "JojoScript", version: "0.10.1" }
       }
     },
     {
