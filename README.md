@@ -748,18 +748,43 @@ JavaScript functions.
 import { createMcpServer, runMcpStdioServer } from "jojoscript/runtime"
 
 const server = createMcpServer({
+  name: "example-server",
+  version: "1.0.0",
   tools: {
-    echo: args => ({ content: [{ type: "text", text: args.value }] })
+    echo: {
+      description: "Returns the supplied value.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          value: { type: "string" }
+        },
+        required: ["value"],
+        additionalProperties: false
+      },
+      handler: args => ({
+        content: [{ type: "text", text: args.value }]
+      })
+    }
   }
 })
 
 await runMcpStdioServer(server)
 ```
 
-The server accepts `tools/call` requests and returns JSON-RPC responses on
-standard output. It is intentionally minimal: supporting tool registration,
-request dispatch, structured errors, and the stdin/stdout transport without any
-external NPM packages.
+The server supports the `initialize` handshake (protocol version
+`2025-06-18`), `notifications/initialized`, `ping`, `tools/list`, and
+`tools/call` over newline-delimited JSON-RPC on standard input/output. Clients
+must initialize before making requests. Tools declare an `inputSchema`; calls
+that do not conform are rejected before the handler runs. Handlers return a
+`CallToolResult` object with a `content` array and may return
+`structuredContent` when their tool declares an `outputSchema`. Thrown handler
+errors are returned as `CallToolResult` values with `isError: true`.
+
+It is intentionally minimal: supporting tool registration, schema validation,
+request dispatch, structured errors, and the stdin/stdout transport without
+external NPM packages. It remains an MCP-style runtime until its supported
+protocol surface has been verified against MCP conformance tests and real
+clients.
 
 ### A2A client
 

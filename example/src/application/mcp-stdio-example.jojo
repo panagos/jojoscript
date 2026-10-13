@@ -2,9 +2,20 @@ import { createMcpServer, runMcpStdioServer } from "jojoscript/runtime"
 
 server := createMcpServer({
   tools: {
-    echo: args => ({
-      content: [{ type: "text", text: args.value }]
-    })
+    echo: {
+      description: "Returns the supplied value.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          value: { type: "string" }
+        },
+        required: ["value"],
+        additionalProperties: false
+      },
+      handler: args => ({
+        content: [{ type: "text", text: args.value }]
+      })
+    }
   }
 })
 

@@ -7,7 +7,7 @@ const server = () => spawn(process.execPath, ["dist/application/mcp-stdio-exampl
   stdio: ["pipe", "pipe", "pipe"]
 })
 
-test("the MCP-style server exposes a tool and responds to JSON-RPC requests", async () => {
+test("the MCP-style server initializes and exposes a schema-defined tool", async () => {
   const child = server()
   let output = ""
 
@@ -22,6 +22,16 @@ test("the MCP-style server exposes a tool and responds to JSON-RPC requests", as
   child.stdin.write(JSON.stringify({
     jsonrpc: "2.0",
     id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "example-client", version: "1.0.0" }
+    }
+  }) + "\n")
+  child.stdin.write(JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
     method: "tools/call",
     params: { name: "echo", arguments: { value: "hello" } }
   }) + "\n")
@@ -34,12 +44,23 @@ test("the MCP-style server exposes a tool and responds to JSON-RPC requests", as
 
   assert.equal(exitCode, 0)
 
-  const response = JSON.parse(output)
-  assert.deepEqual(response, {
-    jsonrpc: "2.0",
-    id: 1,
-    result: {
-      content: [{ type: "text", text: "hello" }]
+  const responses = output.trim().split("\n").map(JSON.parse)
+  assert.deepEqual(responses, [
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        protocolVersion: "2025-06-18",
+        capabilities: { tools: { listChanged: false } },
+        serverInfo: { name: "JojoScript", version: "0.10.0" }
+      }
+    },
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      result: {
+        content: [{ type: "text", text: "hello" }]
+      }
     }
-  })
+  ])
 })
