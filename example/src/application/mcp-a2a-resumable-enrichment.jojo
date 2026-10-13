@@ -1,0 +1,91 @@
+import {
+  checkpoint,
+  createMcpServer,
+  ExecutionContext,
+  mapAsync,
+  runInContext,
+  toArrayAsync
+} from "jojoscript/runtime"
+import { enrichRecord } from "./a2a-enrichment.js"
+
+export async fn enrichRecords(records, agentUrl, checkpointStore, jobId) {
+  context := new ExecutionContext({
+    pipelineId: `mcp-a2a-enrichment:${jobId}`,
+    checkpointStore
+  })
+
+  return await runInContext(context, async () => {
+    return records
+      |> mapAsync(record => enrichRecord(record, agentUrl))
+      |> checkpoint("enriched-records")
+      |> toArrayAsync
+      |> await
+  })
+}
+
+export fn createEnrichmentServer(options) {
+  return createMcpServer({
+    name: "jojoscript-a2a-enrichment",
+    version: "1.0.0",
+    tools: {
+      enrich_records: {
+        description: "Enriches records through an A2A agent and checkpoints completed batches.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            jobId: { type: "string" },
+            records: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  title: { type: "string" }
+                },
+                required: ["id", "title"],
+                additionalProperties: false
+              }
+            }
+          },
+          required: ["jobId", "records"],
+          additionalProperties: false
+        },
+        outputSchema: {
+          type: "object",
+          properties: {
+            records: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  title: { type: "string" },
+                  category: { type: "string" }
+                },
+                required: ["id", "title", "category"],
+                additionalProperties: false
+              }
+            }
+          },
+          required: ["records"],
+          additionalProperties: false
+        },
+        handler: async args => {
+          records := await enrichRecords(
+            args.records,
+            options.agentUrl,
+            options.checkpointStore,
+            args.jobId
+          )
+          return {
+            content: [{
+              type: "text",
+              text: `Enriched ${records.length} records`
+            }],
+            structuredContent: { records }
+          }
+        }
+      }
+    }
+  })
+}

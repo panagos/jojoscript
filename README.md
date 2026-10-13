@@ -831,6 +831,39 @@ JojoScript intentionally provides a lightweight A2A client rather than an
 A2A SDK or agent server. Its protocol behavior is covered by local fixtures;
 real-agent interoperability remains a separate integration concern.
 
+### Resumable MCP-to-A2A enrichment
+
+[example/src/application/mcp-a2a-resumable-enrichment.jojo](example/src/application/mcp-a2a-resumable-enrichment.jojo)
+combines the MCP server, A2A client, asynchronous pipelines, and checkpoints
+in one tool. `enrich_records` accepts a batch of `{ id, title }` records,
+delegates enrichment to an A2A agent, checkpoints a completed batch, and
+returns both text content and structured records to the MCP client.
+
+```js
+import {
+  FileCheckpointStore,
+  runMcpStdioServer
+} from "jojoscript/runtime"
+import { createEnrichmentServer } from "./application/mcp-a2a-resumable-enrichment.js"
+
+const server = createEnrichmentServer({
+  agentUrl: process.env.A2A_AGENT_URL,
+  checkpointStore: new FileCheckpointStore(".jojo-checkpoints")
+})
+
+await runMcpStdioServer(server)
+```
+
+Use a stable `jobId` for retries of the same batch. The checkpoint is saved
+only after every record has been enriched, so retrying a completed batch uses
+the saved records without calling the A2A agent again. This is **at-least-once
+delegation**, not exactly-once: if an A2A agent completes a record and the
+process fails before the enclosing batch checkpoint commits, the retry invokes
+that agent again. Remote agents should therefore use idempotency keys derived
+from the record and job ID when duplicate work is unsafe. The matching
+integration test demonstrates both the duplicate-before-commit case and the
+no-repeat-after-commit case.
+
 ## Example
 
 See [example/](example/). It is a complete runnable project covering every
