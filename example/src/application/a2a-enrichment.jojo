@@ -22,7 +22,7 @@ export async fn enrichRecord(record, agentUrl) {
   })
 
   if (task?.id && task.status && task.status.state !== "TASK_STATE_COMPLETED") {
-    task = await client.waitForTask(task.id)
+    task = await client.waitForTask(task, { pollIntervalMs: 0 })
   }
 
   if (task?.status && task.status.state !== "TASK_STATE_COMPLETED") {

@@ -800,16 +800,36 @@ await agent.discover()
 
 const task = await agent.sendMessage({
   role: "ROLE_USER",
-  parts: [{ text: JSON.stringify({ record: { id: "item-1" } }) }]
+  parts: [{ kind: "data", data: { record: { id: "item-1" } } }],
+  metadata: { requestId: "request-1" }
 })
-const result = await agent.waitForTask(task.id)
+const result = await agent.waitForTask(task, {
+  pollIntervalMs: 500,
+  maxPollIntervalMs: 5000,
+  timeoutMs: 30000
+})
 ```
 
-`sendMessage` and `getTask` map to the A2A `SendMessage` and `GetTask`
-operations. `waitForTask` polls until the task reaches a terminal or
-interrupted state, with a five-minute default timeout. Pass an alternate
-`fetch` function and headers in the client options when integrating with a
-custom transport or authenticated agent.
+`sendMessage`, `getTask`, and `cancelTask` map to the A2A `SendMessage`,
+`GetTask`, and `CancelTask` operations. Messages, task IDs, context IDs,
+metadata, typed parts, and artifacts are returned unchanged. `waitForTask`
+accepts either a task ID or an in-progress task, then returns the final task
+for every terminal state—including failed, rejected, canceled,
+input-required, and authentication-required tasks—so callers must inspect the
+state before treating it as successful.
+
+Waiting uses a five-minute default timeout, configurable polling and bounded
+backoff (`pollIntervalMs`, `maxPollIntervalMs`, and `backoffMultiplier`), and
+an optional `AbortSignal`. It rejects with an `A2AError` whose `code` clearly
+identifies timeouts, cancellation, network/HTTP failures, invalid discovery or
+JSON-RPC responses, and remote-agent errors. Pass `bearerToken`, custom
+headers, or an alternate `fetch` function in the client options. Discovery
+validates advertised JSON-RPC endpoints and only permits credential-free HTTP
+or HTTPS URLs.
+
+JojoScript intentionally provides a lightweight A2A client rather than an
+A2A SDK or agent server. Its protocol behavior is covered by local fixtures;
+real-agent interoperability remains a separate integration concern.
 
 ## Example
 
