@@ -27,6 +27,7 @@ jojo graph <file.jojo> [--format text|dot] [--pipeline <name>]
 jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
 jojo plan <file.jojo> [--format json] [--pipeline <name>]
 jojo generate <plan.json>
+jojo check <file.jojo|plan.json> [--format text|json] [--machine]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -42,6 +43,7 @@ jojo --help
 - `jojo explain app.jojo` describes what each pipeline means (stages, effects, properties) without running it; use `--format json` for tools and LLMs. See [Explaining pipelines](#explaining-pipelines).
 - `jojo plan app.jojo` prints a canonical JSON execution plan, and `jojo generate plan.json` turns a plan back into validated JojoScript. See [Machine-readable execution plans](#machine-readable-execution-plans).
 - `graph`, `explain`, and `plan` accept `--pipeline <name>` to select one pipeline by its (inferred or [declared](#named-pipelines)) name.
+- `jojo check app.jojo` (or `plan.json`) reports structured diagnostics with codes, lines, and suggestions, and exits 1 on errors; `--machine` prints JSON. See [Checking programs](#checking-programs).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -657,6 +659,60 @@ review a generated program as you would any code you did not write.
 `planPipelines(source)` and `planToJojo(plan)` are exported from
 `@panagos/jojoscript`. See
 [example/src/application/plan-example.jojo](example/src/application/plan-example.jojo).
+
+## Checking programs
+
+`jojo check` validates a program, or a JSON plan, without running it. It is
+designed for LLM-generated code: every problem is a structured diagnostic with
+a stable code, a line, and a concrete suggestion, instead of a raw stack trace.
+
+```
+$ jojo check generated.jojo
+ERROR E301
+line 8
+Call divide(1, 0) violates "requires b != 0"
+suggestion: Pass arguments to "divide" that satisfy b != 0
+
+1 error, 0 warnings
+```
+
+`--machine` (or `--format json`) prints the same result as JSON:
+
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "code": "E301",
+      "severity": "error",
+      "line": 8,
+      "message": "Call divide(1, 0) violates \"requires b != 0\"",
+      "suggestion": "Pass arguments to \"divide\" that satisfy b != 0"
+    }
+  ],
+  "warnings": []
+}
+```
+
+The command exits with code 1 when there is at least one error, so a
+generate-check-fix loop can rely on the exit code.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `E100` | error | The compiler rejects the program (with its line when known) |
+| `E101` | error | The compiled JavaScript does not parse (checked by Node's own parser) |
+| `W102` | warning | A declared effect is used but no `handle { ... }` in the file handles it; a caller may still install one |
+| `E201` | error | A `pure fn` uses a declared effect or an `effectful fn` |
+| `E301` | error | A call with literal arguments breaks a `requires` clause |
+| `E401` | error | A `match` over a declared tagged union misses a variant and has no `_` arm |
+| `E402` | error | A constructor pattern has a different number of fields than its variant |
+| `E700` | error | `jojo check plan.json`: the plan is invalid (message names the exact field) |
+
+Contract clauses are only evaluated statically when they use nothing but the
+function's parameters, literals, and operators, so `jojo check` never runs
+program code. `checkSource(source)`, `checkPlan(plan)`, and
+`renderCheckText(result)` are exported from `@panagos/jojoscript`. See
+[example/src/application/check-example.jojo](example/src/application/check-example.jojo).
 
 ## Effect Handlers
 

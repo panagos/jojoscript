@@ -45,6 +45,12 @@
 - `jojo graph`, `jojo explain`, and `jojo plan` accept `--pipeline <name>` to
   select a single pipeline.
 - `jojo build --watch` exits cleanly on Ctrl+C or SIGTERM.
+- Added `jojo check <file.jojo|plan.json> [--format text|json] [--machine]`:
+  structured diagnostics (code, severity, line, message, suggestion) for
+  compiler and JavaScript syntax errors, unhandled effects, purity
+  violations, statically broken contracts, non-exhaustive tagged-union
+  matches, constructor arity, and invalid plans. Exits 1 on errors.
+- Exported `checkSource`, `checkPlan`, and `renderCheckText`.
 
 ### Examples and tests
 
@@ -57,6 +63,8 @@
 - Added a shipment example for stage IDs.
 - Added an order-enrichment example for named pipelines.
 - Added an order-snapshot example for deterministic serialization.
+- Added a shipping-quote example whose test runs `jojo check` on the module
+  and on a broken edit of it.
 - Raised unit test coverage above 85% (lines, branches, and functions) for
   every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
