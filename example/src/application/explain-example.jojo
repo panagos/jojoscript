@@ -1,0 +1,20 @@
+/*
+ * `jojo explain src/application/explain-example.jojo` describes this
+ * pipeline's stages, effects, and properties without running it.
+ */
+
+effect enrichOrder(order)
+
+export async fn enrichPaidOrders(orders) {
+  return handle {
+    enrichOrder: order => ({ ...order, region: order.country == "GR" ? "EU" : "INTL" })
+  } {
+    return orders
+      |> filter(order => order.status == "paid")
+      |> parallel(4)
+      |> map(enrichOrder)
+      |> checkpoint("enriched-orders")
+      |> toArrayAsync
+      |> await
+  }
+}
