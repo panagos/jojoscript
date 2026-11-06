@@ -477,3 +477,29 @@ test('describe prints the self-describing JSON document, optionally for one pipe
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('simulate prints a static simulation for a chosen input size', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, 'effect save(row)\n\nr := rows |> map(save) |> checkpoint("saved")\n\nother := xs |> count\n')
+
+  const text = runCli(['simulate', file, '--input', '5000', '--pipeline', 'r'])
+  assert.equal(text.code, 0)
+  assert.match(text.stdout, /^SIMULATION r\n\nINPUT\n {2}5,000 records\n/)
+  assert.match(text.stdout, /⚠ stage 1: up to 5,000 calls to effect "save"/)
+  assert.doesNotMatch(text.stdout, /SIMULATION other/)
+
+  const [simulation] = JSON.parse(runCli(['simulate', file, '--input=10', '--format', 'json']).stdout)
+  assert.equal(simulation.input, 10)
+  assert.deepEqual(simulation.effectCalls, { save: 10 })
+
+  const defaults = runCli(['simulate', file])
+  assert.match(defaults.stdout, / {2}1,000 records\n/)
+  assert.match(defaults.stdout, /\n\nSIMULATION other\n/)
+
+  const invalid = runCli(['simulate', file, '--input', 'many'])
+  assert.equal(invalid.code, 1)
+  assert.match(invalid.stderr, /--input must be a positive integer/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})

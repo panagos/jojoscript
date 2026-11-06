@@ -237,3 +237,11 @@ test('--pipeline requires a pipeline name', () => {
     assertFails(['explain', file, '--pipeline'], /--pipeline requires a pipeline name/)
   })
 })
+
+test('simulate reports files without pipelines', () => {
+  withProject((dir, file) => {
+    const { stdout, code } = runCli(['simulate', file])
+    assert.equal(code, 0)
+    assert.equal(stdout, 'No pipelines found.\n')
+  })
+})
