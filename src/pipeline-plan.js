@@ -2,6 +2,7 @@ import { compile } from './compiler.js'
 import { findAllPipelines, STAGE_ID } from './pipeline-parser.js'
 import { computePipelineId } from './pipeline-hash.js'
 import { inferPipelineName } from './pipeline-explain.js'
+import { transformNamedPipelines } from './named-pipelines.js'
 
 const PLAN_VERSION = 1
 
@@ -30,7 +31,8 @@ class PlanValidationError extends Error {
  * Arguments stay as source text, so the plan describes computation without
  * evaluating it and `planToJojo` can reproduce it.
  */
-export function planPipelines(source) {
+export function planPipelines(jojoSource) {
+  const source = transformNamedPipelines(jojoSource)
   return {
     version: PLAN_VERSION,
     pipelines: findAllPipelines(source).map(pipeline => ({

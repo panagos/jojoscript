@@ -2,6 +2,7 @@ import { maskNonCode } from './lexer.js'
 import { findAllPipelines } from './pipeline-parser.js'
 import { analyzePipelines, namesReferencedByStage } from './pipeline-ir.js'
 import { findPurityDeclarations } from './purity.js'
+import { transformNamedPipelines } from './named-pipelines.js'
 
 const CONTROL_STAGES = new Set(['await', 'catch', 'orElse', 'pass'])
 const MATERIALIZING_STAGES = new Set(['sort', 'sortBy', 'groupBy', 'partition'])
@@ -16,7 +17,8 @@ const FUNCTION_NAME = /\b(?:fn|function)\s+([A-Za-z_$][\w$]*)\s*\(/g
  * only reflect references to declared effects; ordinary JavaScript calls
  * inside a stage are not analyzed.
  */
-export function explainPipelines(source) {
+export function explainPipelines(jojoSource) {
+  const source = transformNamedPipelines(jojoSource)
   const pipelines = findAllPipelines(source)
   const effectfulFunctionNames = findPurityDeclarations(source)
     .filter(declaration => declaration.purity === 'effectful')

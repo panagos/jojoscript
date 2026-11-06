@@ -21,6 +21,7 @@ import {
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
 import { transformPurityModifiers } from './purity.js'
+import { transformNamedPipelines } from './named-pipelines.js'
 import { transformContracts, findContracts } from './contracts.js'
 import { transformTypeDeclarations, findTypeDeclarations } from './type-declarations.js'
 import {
@@ -50,6 +51,7 @@ export function compile(source, options = {}) {
    * Optional type annotations, stripped and re-expressed as JSDoc before
    * anything else touches `fn` declarations.
    */
+  result = transformNamedPipelines(result)
   result = transformPurityModifiers(result)
 
   const usesContracts = findContracts(result).length > 0

@@ -1,6 +1,7 @@
 import { findAllPipelines } from './pipeline-parser.js'
 import { computePipelineId } from './pipeline-hash.js'
 import { findEffectDeclarations, findHandleBlocks } from './effect-parser.js'
+import { transformNamedPipelines } from './named-pipelines.js'
 
 /*
  * Best-effort, purely textual check for whether `effectName` is referenced
@@ -92,7 +93,8 @@ export function buildGraph(pipeline, pipelineId = computePipelineId(pipeline), o
  * handler-map keys, so returned graphs can expose which effects each
  * pipeline uses and whether a handler for them is statically visible.
  */
-export function analyzePipelines(source) {
+export function analyzePipelines(jojoSource) {
+  const source = transformNamedPipelines(jojoSource)
   const effectNames = findEffectDeclarations(source).map(declaration => declaration.name)
   const handledEffectNames = findHandleBlocks(source).flatMap(block => block.handlerNames)
 
