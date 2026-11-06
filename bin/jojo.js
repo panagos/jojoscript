@@ -9,6 +9,7 @@ import { compile, compileFile, compileDirectory } from '../src/compiler.js'
 import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeline-ir.js'
 import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
 import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
+import { checkSource, checkPlan, renderCheckText } from '../src/check.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -29,6 +30,7 @@ Usage:
   jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
   jojo plan <file.jojo> [--format json] [--pipeline <name>]
   jojo generate <plan.json>
+  jojo check <file.jojo|plan.json> [--format text|json] [--machine]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -47,6 +49,7 @@ Examples:
   jojo explain orders.jojo --format json
   jojo plan orders.jojo --format=json
   jojo generate orders.plan.json
+  jojo check generated.jojo --machine
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -210,17 +213,27 @@ function plan(input, wanted) {
   console.log(JSON.stringify({ ...fullPlan, pipelines }, null, 2))
 }
 
-function generate(input) {
-  const resolvedInput = requireSingleFile('generate', input)
-
-  let parsed
+function readPlan(file) {
   try {
-    parsed = JSON.parse(fs.readFileSync(resolvedInput, 'utf8'))
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
   } catch (error) {
     fail(`Invalid plan JSON: ${error.message}`)
   }
+}
 
-  process.stdout.write(planToJojo(parsed))
+function generate(input) {
+  const resolvedInput = requireSingleFile('generate', input)
+  process.stdout.write(planToJojo(readPlan(resolvedInput)))
+}
+
+function check(input, format) {
+  const resolvedInput = requireSingleFile('check', input)
+  const result = resolvedInput.endsWith('.json')
+    ? checkPlan(readPlan(resolvedInput))
+    : checkSource(fs.readFileSync(resolvedInput, 'utf8'))
+
+  console.log(format === 'json' ? JSON.stringify(result, null, 2) : renderCheckText(result))
+  if (!result.valid) process.exitCode = 1
 }
 
 function profile(input) {
@@ -418,7 +431,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -455,6 +468,13 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'check') {
+    const machine = args.includes('--machine')
+    const { format } = parseFormatFlags(args.filter(arg => arg !== '--machine'), 2, ['text', 'json'])
+    check(input, machine ? 'json' : format)
     return
   }
 
