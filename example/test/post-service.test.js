@@ -38,3 +38,9 @@ test("returns posts for user", async () => {
     [posts[2]]
   )
 })
+
+test("returns all posts from the repository", async () => {
+  const service = new PostService(repository())
+
+  assert.deepEqual(await service.getAllPosts(), posts)
+})

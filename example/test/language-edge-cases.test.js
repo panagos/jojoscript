@@ -62,3 +62,8 @@ test("jojo syntax embedded in a template literal is left untouched", () => {
 test("dynamic import of a local module", async () => {
   assert.equal(await loadGreeting("Jojo"), "Hello, Jojo!")
 })
+
+test("posts without tags contribute no tags to pipelines", () => {
+  assert.deepEqual(buildTagReport([...posts, { id: 4, title: "Delta" }]).tags, ["js", "backend", "sqlite", "jojo"])
+  assert.deepEqual(buildTagBuckets([{ id: 5, title: "Epsilon" }], "extra"), [[], "extra"])
+})
