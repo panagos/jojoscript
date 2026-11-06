@@ -31,6 +31,7 @@ export {
 } from './collections.js'
 
 export { checkpoint } from './checkpoint.js'
+export { toJson, fromJson } from './serialization.js'
 export { defineType } from './tagged-unions.js'
 export { inspect, formatInspectReport } from './inspect.js'
 export { retry } from './retry.js'
