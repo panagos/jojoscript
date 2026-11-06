@@ -7,6 +7,9 @@
 - Added `jojo format <file.jojo|directory> [--check]`, which reformats files
   in place or, with `--check`, lists unformatted files and exits 1. Exported
   `formatSource`.
+- Added `jojo parse <file.jojo> [--json]`, the syntax-level JSON view of a
+  file: imports, effects, types, functions, pipelines, handle blocks, and
+  matches with their lines. Exported `parseSource`.
 - The formatter now indents one level per line that opens brackets, and
   indents ternary lines, method chains, `=>` continuations, contract clauses,
   and tagged-union variant lines. Named pipeline stages align with `source`.

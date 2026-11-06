@@ -32,6 +32,7 @@ jojo describe <file.jojo> [--pipeline <name>]
 jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
 jojo why <file.jojo> [--format text|json] [--pipeline <name>]
 jojo format <file.jojo|directory> [--check]
+jojo parse <file.jojo> [--json]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -52,6 +53,7 @@ jojo --help
 - `jojo simulate app.jojo --input 1000000` estimates item counts, effect calls, and risks for a given input size without running anything. See [Simulating pipelines](#simulating-pipelines).
 - `jojo why app.jojo` answers questions such as "why is this pipeline not deterministic?" in plain language. See [Asking why](#asking-why).
 - `jojo format src` reformats `.jojo` files in place; `--check` lists unformatted files and exits 1. See [Formatting](#formatting).
+- `jojo parse app.jojo --json` lists every syntax construct (imports, effects, types, functions, pipelines, handle blocks, matches) with its line. See [Parsing programs](#parsing-programs).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -768,6 +770,45 @@ or an LLM can learn what a program contains without reading its source:
 `--pipeline <name>` limits `pipelines` to one pipeline. `describeSource(source)`
 is exported from `@panagos/jojoscript`. See
 [example/src/application/describe-example.jojo](example/src/application/describe-example.jojo).
+
+## Parsing programs
+
+`jojo parse <file.jojo> --json` prints the syntax-level view of a file: every
+JojoScript construct the compiler recognizes, with its line, ordered by line.
+Where `jojo describe` summarizes what a program means, `jojo parse` lists what
+it contains, so a tool or an LLM can locate and edit constructs precisely.
+
+```json
+{
+  "language": "jojo",
+  "version": "1",
+  "nodes": [
+    { "kind": "type", "line": 6, "name": "Decision", "exported": true,
+      "variants": [{ "name": "Approved", "fields": ["id"] }, { "name": "Escalated", "fields": ["id", "team"] }] },
+    { "kind": "function", "line": 10, "name": "decide", "params": ["refund"], "exported": false,
+      "async": false, "purity": null, "body": "expression", "requires": [], "ensures": [] },
+    { "kind": "match", "line": 13, "patterns": ["Approved(id)", "Escalated(id, team)"] },
+    { "kind": "pipeline", "line": 20, "name": "routeRefunds", "declared": false, "source": "refunds",
+      "stages": [{ "type": "map", "args": ["decide"], "id": null }] }
+  ]
+}
+```
+
+| Kind | Fields |
+|---|---|
+| `import` | `from`, `names` |
+| `effect` | `name`, `params` |
+| `type` | `name`, `exported`, `variants` (`name`, `fields`) |
+| `function` | `name`, `params` (as written, including defaults), `exported`, `async`, `purity`, `body` (`"block"` or `"expression"`), `requires`, `ensures` |
+| `pipeline` | `name`, `declared` (a `pipeline` block), `source`, `stages` (`type`, `args`, `id`) |
+| `handle` | `handlers` |
+| `match` | `patterns` |
+
+JojoScript has no AST by design: nodes come from the same finders the compiler
+uses, so `parse` never disagrees with what compiles. Invalid syntax is
+reported as a single `jojo:` error line. `parseSource(source)` is exported
+from `@panagos/jojoscript`. See
+[example/src/application/parse-example.jojo](example/src/application/parse-example.jojo).
 
 ## Simulating pipelines
 
