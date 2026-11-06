@@ -1,0 +1,18 @@
+/*
+ * `toJson` writes canonical JSON (sorted keys, tagged Dates, Maps, Sets, and
+ * more), so the same order always produces the same snapshot text and
+ * `fromJson` restores it exactly.
+ */
+
+import { toJson, fromJson } from "jojoscript/runtime"
+
+export fn snapshotOrder(order) = toJson(order)
+
+export fn restoreOrder(snapshot) {
+  order := fromJson(snapshot)
+
+  totalItems := order.quantities.values()
+    |> reduce((sum, quantity) => sum + quantity, 0)
+
+  return { ...order, totalItems }
+}
