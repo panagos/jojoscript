@@ -134,10 +134,6 @@ export function compile(source, options = {}) {
   return result.endsWith('\n') ? result : result + '\n'
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 function mergeRuntimeImport(source, stdlibFunctions, runtimeImport) {
   const pattern = new RegExp(
     `import\\s*\\{([^}]*)\\}\\s*from\\s*(["'])([^"']+\\/runtime)\\2`
