@@ -53,7 +53,7 @@ test('handle block compiles to an awaited withHandlers() call', () => {
 }`
 
   const output = transformHandleBlocks(source)
-  assert.match(output, /^\(await withHandlers\(\{/)
+  assert.match(output, /^;\(await withHandlers\(\{/)
   assert.match(output, /fetchUser: id => fakeUser\(id\)/)
   assert.match(output, /async \(\) => \{/)
   assert.match(output, /console\.log\(fetchUser\(1\)\)/)
@@ -144,4 +144,14 @@ test('existing programs without effect syntax are unaffected by the new transfor
   const output = compile(source)
   assert.match(output, /^const users = getUsers\(\)/)
   assert.doesNotMatch(output, /defineEffect|withHandlers/)
+})
+
+test('a handle block starting its own statement is not joined to the previous line', async () => {
+  const output = compile('effect save(x)\n\nhandle { save: x => x * 2 } {\n  globalThis.__jojoSaved = await save(21)\n}\n', {
+    runtimeImport: new URL('../src/runtime/index.js', import.meta.url).href
+  })
+
+  assert.match(output, /^;\(await withHandlers\(/m)
+  await import(`data:text/javascript,${encodeURIComponent(output)}`)
+  assert.equal(globalThis.__jojoSaved, 42)
 })

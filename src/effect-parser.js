@@ -211,10 +211,12 @@ export function transformHandleBlocks(source) {
 
     const handlerText = text(result, tokens.slice(target.handlerOpen, target.handlerClose + 1))
     const bodyText = text(result, tokens.slice(target.bodyOpen, target.bodyClose + 1))
-    const replacement = `(await withHandlers(${handlerText}, async () => ${bodyText}))`
-
     const start = tokens[target.keywordIndex].start
     const end = tokens[target.bodyClose].end
+
+    // A statement starting with `(` would otherwise be parsed as a call on the previous line.
+    const startsStatement = /(^|\n)[ \t]*$/.test(result.slice(0, start))
+    const replacement = `${startsStatement ? ';' : ''}(await withHandlers(${handlerText}, async () => ${bodyText}))`
 
     result = result.slice(0, start) + replacement + result.slice(end)
   }
