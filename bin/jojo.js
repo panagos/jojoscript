@@ -11,6 +11,7 @@ import { explainPipelines, renderExplanationText } from '../src/pipeline-explain
 import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
 import { checkSource, checkPlan, renderCheckText } from '../src/check.js'
 import { describeSource } from '../src/describe.js'
+import { simulatePipelines, renderSimulationText } from '../src/simulate.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -33,6 +34,7 @@ Usage:
   jojo generate <plan.json>
   jojo check <file.jojo|plan.json> [--format text|json] [--machine]
   jojo describe <file.jojo> [--pipeline <name>]
+  jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -53,6 +55,7 @@ Examples:
   jojo generate orders.plan.json
   jojo check generated.jojo --machine
   jojo describe orders.jojo
+  jojo simulate orders.jojo --input 1000000
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -234,6 +237,28 @@ function describe(input, wanted) {
   const description = describeSource(fs.readFileSync(resolvedInput, 'utf8'))
   const pipelines = selectPipelines(description.pipelines, description.pipelines.map(item => item.name), wanted)
   console.log(JSON.stringify({ ...description, pipelines }, null, 2))
+}
+
+function takeOption(args, name) {
+  const index = args.findIndex(arg => arg === name || arg.startsWith(`${name}=`))
+  if (index === -1) return { value: null, rest: args }
+
+  const inline = args[index] !== name
+  const value = inline ? args[index].slice(name.length + 1) : args[index + 1]
+  return { value, rest: args.filter((_, i) => i !== index && (inline || i !== index + 1)) }
+}
+
+function simulate(input, { format, pipeline, records }) {
+  const resolvedInput = requireSingleFile('simulate', input)
+  const all = simulatePipelines(fs.readFileSync(resolvedInput, 'utf8'), { input: records ?? undefined })
+  const simulations = selectPipelines(all, all.map(simulation => simulation.name), pipeline)
+
+  if (format === 'json') {
+    console.log(JSON.stringify(simulations, null, 2))
+    return
+  }
+
+  console.log(simulations.length ? simulations.map(renderSimulationText).join('\n\n') : 'No pipelines found.')
 }
 
 function check(input, format) {
@@ -441,7 +466,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -478,6 +503,14 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'simulate') {
+    const { value, rest } = takeOption(args, '--input')
+    if (value !== null && !/^[1-9]\d*$/.test(value ?? '')) fail('--input must be a positive integer')
+    const { format, pipeline } = parseFormatFlags(rest, 2, ['text', 'json'])
+    simulate(input, { format, pipeline, records: value === null ? null : Number(value) })
     return
   }
 
