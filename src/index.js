@@ -58,3 +58,5 @@ export {
   whyPipelines,
   renderWhyText
 } from './why.js'
+
+export { formatSource } from './formatter.js'
