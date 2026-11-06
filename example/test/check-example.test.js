@@ -5,7 +5,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { quoteShipping, describeQuote, Quoted } from "../dist/application/check-example.js"
+import { quoteShipping, describeQuote, sampleQuote, Quoted } from "../dist/application/check-example.js"
 
 const EXAMPLE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..")
 const SOURCE_FILE = path.join(EXAMPLE_ROOT, "src/application/check-example.jojo")
@@ -43,4 +43,9 @@ test("jojo check explains what an LLM edit broke, with codes, lines, and suggest
   assert.equal(result.errors[0].message, "match on Quote does not handle variant Rejected")
   assert.equal(result.errors[1].message, 'Call quoteShipping(-1) violates "requires weightKg > 0"')
   assert.equal(result.errors[1].suggestion, 'Pass arguments to "quoteShipping" that satisfy weightKg > 0')
+})
+
+test("the contract checked statically is also enforced when the module runs", () => {
+  assert.equal(describeQuote(sampleQuote()), "ships for 6")
+  assert.throws(() => quoteShipping(0), /Contract violated: quoteShipping requires weightKg > 0/)
 })

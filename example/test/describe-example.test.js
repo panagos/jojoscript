@@ -47,3 +47,12 @@ test("jojo describe tells an LLM what the module contains without reading its so
   ])
   assert.deepEqual(pipeline.properties, { lazy: true, parallel: false, resumable: true, deterministic: true })
 })
+
+test("an invoice with a negative amount breaks the described contract", async () => {
+  const ctx = new ExecutionContext({ pipelineId: "invoices-invalid", checkpointStore: new MemoryCheckpointStore() })
+
+  await assert.rejects(
+    runInContext(ctx, () => ingestInvoices([{ id: "c", amount: -1, paid: false }], [])),
+    /Contract violated: toInvoice requires record.amount >= 0/
+  )
+})
