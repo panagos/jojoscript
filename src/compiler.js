@@ -199,43 +199,27 @@ export function compileDirectory(inputDir, outDir = null, options = {}) {
     ? path.resolve(outDir)
     : path.join(root, 'dist')
 
-  const result = []
+  return findJojoFiles(root).map(full => {
+    const rel = path.relative(root, full).slice(0, -'.jojo'.length) + '.js'
+    const out = path.join(target, rel)
 
-  function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (
-        entry.name === 'node_modules' ||
-        entry.name === 'dist' ||
-        entry.name.startsWith('.')
-      ) {
-        continue
-      }
+    fs.mkdirSync(path.dirname(out), { recursive: true })
+    fs.writeFileSync(out, compile(fs.readFileSync(full, 'utf8'), options), 'utf8')
 
-      const full = path.join(dir, entry.name)
+    return { input: full, output: out }
+  })
+}
 
-      if (entry.isDirectory()) {
-        walk(full)
-        continue
-      }
+export function findJojoFiles(root) {
+  const files = []
 
-      if (!entry.name.endsWith('.jojo')) continue
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) continue
 
-      const rel =
-        path.relative(root, full).slice(0, -'.jojo'.length) + '.js'
-
-      const out = path.join(target, rel)
-
-      fs.mkdirSync(path.dirname(out), { recursive: true })
-      fs.writeFileSync(
-        out,
-        compile(fs.readFileSync(full, 'utf8'), options),
-        'utf8'
-      )
-
-      result.push({ input: full, output: out })
-    }
+    const full = path.join(root, entry.name)
+    if (entry.isDirectory()) files.push(...findJojoFiles(full))
+    else if (entry.name.endsWith('.jojo')) files.push(full)
   }
 
-  walk(root)
-  return result
+  return files
 }
