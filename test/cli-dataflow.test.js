@@ -549,3 +549,20 @@ test('format rewrites unformatted files in place and --check reports them withou
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('parse prints the syntax nodes as JSON and reports invalid syntax as one line', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, 'effect save(row)\n\nr := rows |> map(save)\n')
+
+  const parsed = JSON.parse(runCli(['parse', file, '--json']).stdout)
+  assert.deepEqual(parsed.nodes.map(node => node.kind), ['effect', 'pipeline'])
+  assert.equal(runCli(['parse', file]).stdout, runCli(['parse', file, '--json']).stdout)
+
+  fs.writeFileSync(file, 'type T = lower\n')
+  const invalid = runCli(['parse', file])
+  assert.equal(invalid.code, 1)
+  assert.match(invalid.stderr, /jojo: Variant "lower" of type "T" must start with an uppercase letter/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
