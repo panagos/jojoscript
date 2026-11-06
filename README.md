@@ -22,7 +22,7 @@ npm install @panagos/jojoscript
 
 ```bash
 jojo build <file.jojo|directory> [--out <directory>] [--watch]
-jojo run <file.jojo> [--out <directory>]
+jojo run <file.jojo> [--out <directory>] [--deterministic [--seed <n>]]
 jojo graph <file.jojo> [--format text|dot] [--pipeline <name>]
 jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
 jojo plan <file.jojo> [--format json] [--pipeline <name>]
@@ -44,6 +44,7 @@ jojo --help
 - `jojo build src` compiles every `.jojo` file under `src` to `src/dist/*.js` (or `--out <dir>`).
 - `jojo build src --watch` rebuilds whenever a `.jojo` file under `src` changes.
 - `jojo run app.jojo` compiles a single file and immediately runs it with Node — useful for a fast dev loop.
+- `jojo run app.jojo --deterministic --seed 42` runs the program in [deterministic execution mode](#deterministic-execution-mode): seeded `random()`, a fixed clock, sequential `parallel()`, and deterministic effect handlers only.
 - `jojo graph app.jojo` prints a static pipeline graph; use `--format dot` for Graphviz output.
 - `jojo explain app.jojo` describes what each pipeline means (stages, effects, properties) without running it; use `--format json` for tools and LLMs. See [Explaining pipelines](#explaining-pipelines).
 - `jojo plan app.jojo` prints a canonical JSON execution plan, and `jojo generate plan.json` turns a plan back into validated JojoScript. See [Machine-readable execution plans](#machine-readable-execution-plans).
@@ -1275,6 +1276,44 @@ interface (`record`/`replayNext`), mirroring `CheckpointStore` — an
 extension point for a future backend, not a full production-grade
 persistence system.
 
+### Deterministic execution mode
+
+`now()` and `random()` are built-in capabilities, like `parallel()`. Outside
+any handler they behave like `Date.now()` and `Math.random()`, and a
+`handle { TIME: ..., RANDOM: ... }` block can replace them:
+
+```jojo
+import { now, random } from "@panagos/jojoscript/runtime"
+
+order := { id: Math.round(random() * 1000), createdAt: new Date(now()) }
+```
+
+`deterministic(fn, { seed, startTime })` runs `fn` so that the same inputs
+always produce the same outputs:
+
+- `random()` is a seeded generator (`seed` defaults to `1`);
+- `now()` starts at `startTime` (default `0`) and advances 1ms per read;
+- `parallel()` stages process one item at a time, in order;
+- every declared effect must resolve to a handler declared deterministic
+  (`{ handle, deterministic: true }`, or `replayHandlers(...)`); any other
+  handler throws a non-retryable `NondeterministicEffectError` before it runs;
+- checkpoints record `now()` as their `createdAt`, so reruns write identical
+  checkpoints.
+
+```js
+import { deterministic } from "@panagos/jojoscript/runtime"
+
+const first = await deterministic(() => generateOrders(3), { seed: 2026 })
+const second = await deterministic(() => generateOrders(3), { seed: 2026 })
+// first and second are deep-equal
+```
+
+`jojo run app.jojo --deterministic [--seed <n>]` runs a whole program, top-level
+code included, in this mode. Determinism covers JojoScript's capabilities:
+direct calls to `Date.now()`, `Math.random()`, or I/O outside declared effects
+are not intercepted. See
+[example/src/application/deterministic-example.jojo](example/src/application/deterministic-example.jojo).
+
 ### JavaScript interoperability
 
 A handler is just a normal JavaScript function — sync or async — and can
@@ -1630,7 +1669,7 @@ resulting `.vsix` locally.
   actually consumed.** Constructing a lazy pipeline inside a `handle` block
   without consuming it there (no `toArray`/`toArrayAsync`/`reduce`/...) means
   effects pulled later, outside the block, won't see its handlers.
-- **Only `PARALLEL` is a built-in effect today.** The other capabilities
-  mentioned as a long-term direction (`IO`, `HTTP`, `FILE`, `DATABASE`,
-  `SLEEP`, `TIME`, `RANDOM`, `CHECKPOINT`) are not implemented — user-defined
+- **`PARALLEL`, `TIME`, and `RANDOM` are the only built-in effects.** The
+  other capabilities mentioned as a long-term direction (`IO`, `HTTP`, `FILE`,
+  `DATABASE`, `SLEEP`, `CHECKPOINT`) are not implemented; user-defined
   `effect` declarations cover the same need today.

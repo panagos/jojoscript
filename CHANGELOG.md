@@ -14,6 +14,23 @@
   indents ternary lines, method chains, `=>` continuations, contract clauses,
   and tagged-union variant lines. Named pipeline stages align with `source`.
 
+### Runtime
+
+- Added deterministic execution mode: `deterministic(fn, { seed, startTime })`
+  seeds `random()`, fixes the `now()` clock, runs `parallel()` sequentially,
+  and only allows effect handlers declared deterministic
+  (`NondeterministicEffectError` otherwise). `jojo run --deterministic
+  [--seed <n>]` runs a whole program in this mode.
+- Added `now()` and `random()` built-in capabilities, replaceable with
+  `TIME` / `RANDOM` handlers. Checkpoints record `now()` as `createdAt`.
+
+### Fixes
+
+- A top-level `handle` block no longer joins the previous statement when that
+  line has no semicolon.
+- With an explicit `runtimeImport` (as the CLI uses), runtime imports are
+  rewritten even in files without pipeline stages.
+
 ### Editor support
 
 - The VS Code extension's `Format Document` uses the shared formatter.
