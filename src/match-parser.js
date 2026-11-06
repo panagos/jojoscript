@@ -205,6 +205,35 @@ function isObjectPattern(tokens) {
   return tokens[0]?.value === '{' && matchingClose(tokens, 0) === tokens.length - 1
 }
 
+function isConstructorPattern(tokens) {
+  return tokens[0]?.type === 'identifier' &&
+    /^[A-Z]/.test(tokens[0].value) &&
+    tokens[1]?.value === '(' &&
+    matchingClose(tokens, 1) === tokens.length - 1
+}
+
+function isStructuralPattern(tokens) {
+  return isObjectPattern(tokens) || isConstructorPattern(tokens)
+}
+
+// Fields bind by position through the constructor's `fields`, so values decoded from JSON still match.
+function compileConstructorPattern(source, tokens, accessor) {
+  const variant = tokens[0].value
+  const conditions = [
+    `${accessor} !== null && typeof ${accessor} === "object"`,
+    `${accessor}.tag === ${JSON.stringify(variant)}`
+  ]
+  const bindings = []
+
+  splitTopLevelCommas(tokens.slice(2, -1)).filter(group => group.length).forEach((argument, index) => {
+    const pattern = compilePattern(source, argument, `${accessor}[${variant}.fields[${index}]]`, true)
+    conditions.push(...pattern.conditions)
+    bindings.push(...pattern.bindings)
+  })
+
+  return { conditions, bindings }
+}
+
 /*
  * Inside an object pattern a bare name binds the field, while literals and
  * other expressions are compared with `===`.
@@ -213,6 +242,7 @@ function compilePattern(source, tokens, accessor, nested) {
   if (tokens.length === 1 && tokens[0].value === '_') return { conditions: [], bindings: [] }
 
   if (isObjectPattern(tokens)) return compileObjectPattern(source, tokens, accessor)
+  if (isConstructorPattern(tokens)) return compileConstructorPattern(source, tokens, accessor)
 
   if (nested && isBindingName(tokens)) {
     return { conditions: [], bindings: [[tokens[0].value, accessor]] }
@@ -278,7 +308,7 @@ function parseArms(source, tokens) {
     return {
       pattern,
       expression,
-      structural: isObjectPattern(patternTokens),
+      structural: isStructuralPattern(patternTokens),
       compiled: compilePattern(source, patternTokens, '__match', false)
     }
   })

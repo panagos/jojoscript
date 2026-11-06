@@ -20,6 +20,7 @@ import {
 
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
+import { transformTypeDeclarations, findTypeDeclarations } from './type-declarations.js'
 import {
   transformEffectDeclarations,
   transformHandleBlocks,
@@ -48,6 +49,9 @@ export function compile(source, options = {}) {
    * anything else touches `fn` declarations.
    */
   result = transformTypeAnnotations(result)
+
+  const usesTypeDeclarations = findTypeDeclarations(result).length > 0
+  result = transformTypeDeclarations(result)
 
   /*
    * Jojo functions.
@@ -97,6 +101,9 @@ export function compile(source, options = {}) {
   }
   if (usesHandleBlocks && !pipelineStdlibFunctions.includes('withHandlers')) {
     pipelineStdlibFunctions.push('withHandlers')
+  }
+  if (usesTypeDeclarations && !pipelineStdlibFunctions.includes('defineType')) {
+    pipelineStdlibFunctions.push('defineType')
   }
 
   /*
