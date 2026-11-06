@@ -1,0 +1,32 @@
+/*
+ * Customer onboarding with effects before and after a checkpoint.
+ * `jojo why why-example.jojo --pipeline verifiedCustomers` explains in plain
+ * language why it is not deterministic and where retries can repeat work.
+ */
+
+effect verifyEmail(email)
+effect deliverEmail(to)
+
+effectful async fn sendWelcome(customer) {
+  await deliverEmail(customer.email)
+  return customer
+}
+
+pipeline verifiedCustomers {
+  source customers
+  |> filter(customer => customer.signedUp)
+  |> mapAsync(async customer => ({ ...customer, verified: await verifyEmail(customer.email) }))
+  |> checkpoint("verified")
+  |> mapAsync(sendWelcome)
+}
+
+export async fn onboard(customers, welcomed) {
+  return handle {
+    verifyEmail: email => email.includes("@"),
+    deliverEmail: to => welcomed.push(to)
+  } {
+    return verifiedCustomers(customers)
+      |> toArrayAsync
+      |> await
+  }
+}
