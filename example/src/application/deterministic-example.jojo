@@ -1,0 +1,46 @@
+/*
+ * Generates test orders with `random()` and `now()`. Inside `deterministic()`
+ * (or `jojo run --deterministic --seed N`) the same seed always produces the
+ * same orders, and effects must use deterministic handlers.
+ */
+
+import { random, now } from "jojoscript/runtime"
+
+effect fetchRate(currency)
+
+fn createOrder(index) {
+  return {
+    id: `order-${index}`,
+    totalUsd: Math.round(random() * 10000) / 100,
+    createdAt: new Date(now()).toISOString()
+  }
+}
+
+async fn convert(order) {
+  rate := await fetchRate("EUR")
+  return { ...order, totalEur: Math.round(order.totalUsd * rate * 100) / 100 }
+}
+
+async fn buildOrders(count) {
+  return Array.from({ length: count }, (_, index) => index + 1)
+    |> map(createOrder)
+    |> mapAsync(convert)
+    |> toArrayAsync
+    |> await
+}
+
+export async fn generateOrders(count) {
+  return handle {
+    fetchRate: { handle: currency => 0.9, deterministic: true }
+  } {
+    return await buildOrders(count)
+  }
+}
+
+export async fn generateOrdersWithLiveRates(count) {
+  return handle {
+    fetchRate: currency => 0.9 + random() / 100
+  } {
+    return await buildOrders(count)
+  }
+}
