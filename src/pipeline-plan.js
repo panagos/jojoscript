@@ -1,5 +1,5 @@
 import { compile } from './compiler.js'
-import { findAllPipelines } from './pipeline-parser.js'
+import { findAllPipelines, STAGE_ID } from './pipeline-parser.js'
 import { computePipelineId } from './pipeline-hash.js'
 import { inferPipelineName } from './pipeline-explain.js'
 
@@ -42,6 +42,11 @@ export function planPipelines(source) {
 }
 
 function planStage(stage) {
+  const planned = plannedStage(stage)
+  return stage.id ? { ...planned, id: stage.id } : planned
+}
+
+function plannedStage(stage) {
   const { name: type, args } = stage
   const integerField = INTEGER_STAGE_FIELDS[type]
 
@@ -75,7 +80,8 @@ function emitPipeline({ pipeline, stages: [source, ...stages] }) {
 
 function emitStage(stage) {
   const args = stageArgs(stage)
-  return args ? `${stage.type}(${args.join(', ')})` : stage.type
+  const call = args ? `${stage.type}(${args.join(', ')})` : stage.type
+  return stage.id ? `${call} @${stage.id}` : call
 }
 
 function stageArgs(stage) {
@@ -119,7 +125,14 @@ function validatePlan(plan) {
     if (!Array.isArray(pipeline.stages) || !pipeline.stages.length) {
       throw new PlanValidationError(`${path}.stages must be a non-empty array`)
     }
-    pipeline.stages.forEach((stage, stageIndex) => validateStage(stage, stageIndex, `${path}.stages[${stageIndex}]`))
+    const stageIds = new Set()
+    pipeline.stages.forEach((stage, stageIndex) => {
+      const stagePath = `${path}.stages[${stageIndex}]`
+      validateStage(stage, stageIndex, stagePath)
+      if (stage.id === undefined) return
+      if (stageIds.has(stage.id)) throw new PlanValidationError(`${stagePath}.id "${stage.id}" is already used in this pipeline`)
+      stageIds.add(stage.id)
+    })
   })
 }
 
@@ -139,7 +152,10 @@ function validateStage(stage, index, path) {
   }
 
   const fields = allowedFields(stage.type)
-  assertKnownFields(stage, ['type', ...fields], path)
+  assertKnownFields(stage, ['type', 'id', ...fields], path)
+  if (stage.id !== undefined && (typeof stage.id !== 'string' || !STAGE_ID.test(stage.id))) {
+    throw new PlanValidationError(`${path}.id must be a stage id such as "enrich"`)
+  }
 
   const used = fields.filter(field => field in stage)
   if (used.length > 1) {

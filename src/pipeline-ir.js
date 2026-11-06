@@ -47,11 +47,11 @@ export function buildGraph(pipeline, pipelineId = computePipelineId(pipeline), o
     const effects = namesReferencedByStage(stage, effectNames)
 
     nodes.push({
-      id: `node-${index + 1}`,
+      id: stage.id ?? `node-${index + 1}`,
       type: stage.name,
       label: stage.args.length ? `${stage.name}(${stage.args.join(', ')})` : stage.name,
       args: stage.args,
-      dependencies: [`node-${index}`],
+      dependencies: [nodes[index].id],
       metadata: effects.length ? { effects } : {}
     })
   })
@@ -62,7 +62,7 @@ export function buildGraph(pipeline, pipelineId = computePipelineId(pipeline), o
     type: 'result',
     label: 'RESULT',
     args: [],
-    dependencies: [`node-${pipeline.stages.length}`],
+    dependencies: [nodes[nodes.length - 1].id],
     metadata: {}
   })
 

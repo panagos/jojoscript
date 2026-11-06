@@ -50,6 +50,7 @@ function describeStage(node, index, effectfulFunctionNames) {
 
   return {
     index,
+    id: node.type === 'source' || /^node-\d+$/.test(node.id) ? null : node.id,
     type: node.type,
     detail: stageDetail(node, [...effects, ...effectfulFunctions]),
     args: node.args,
@@ -117,7 +118,8 @@ export function renderExplanationText(explanation) {
     `PIPELINE ${explanation.name}`,
     '',
     'STAGES',
-    ...explanation.stages.map(stage => `  ${stage.index} ${stage.type.padEnd(width)} ${stage.detail}`),
+    ...explanation.stages.map(stage =>
+      `  ${stage.index} ${stage.type.padEnd(width)} ${stage.detail}${stage.id ? ` @${stage.id}` : ''}`),
     '',
     'EFFECTS',
     ...effects,

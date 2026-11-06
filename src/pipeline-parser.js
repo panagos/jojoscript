@@ -234,14 +234,36 @@ function parsePipelineStatement(source, statementStart, statementEnd) {
       throw new SyntaxError(`Empty pipeline stage in:\n${statement}`)
     }
 
-    stages.push(parseStage(statement, stageTokens))
+    stages.push(parseStageWithId(statement, stageTokens))
     i = stageEnd - 1
   }
+
+  const ids = stages.map(stage => stage.id).filter(Boolean)
+  const duplicate = ids.find((id, index) => ids.indexOf(id) !== index)
+  if (duplicate) throw new SyntaxError(`Duplicate stage id: @${duplicate}`)
 
   const prefixTokens = tokens.slice(0, inputStartIndex)
   const prefix = prefixTokens.length ? text(statement, prefixTokens).trim() : ''
 
   return { expression, stages, prefix }
+}
+
+export const STAGE_ID = /^[A-Za-z_][\w-]*$/
+
+// A trailing `@id` labels a stage without changing what it computes.
+function parseStageWithId(source, tokens) {
+  let depth = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const value = tokens[i].value
+    if (value === '(' || value === '[' || value === '{') depth++
+    else if (value === ')' || value === ']' || value === '}') depth--
+    else if (value === '@' && depth === 0) {
+      const id = source.slice(tokens[i].end, tokens[tokens.length - 1].end).trim()
+      if (!STAGE_ID.test(id)) throw new SyntaxError(`Invalid stage id: @${id}`)
+      return { ...parseStage(source, tokens.slice(0, i)), id }
+    }
+  }
+  return parseStage(source, tokens)
 }
 
 function metaLiteral(pipelineId, nodeId, type, extra = {}) {
@@ -312,7 +334,7 @@ export function emitPipeline(pipeline, options = {}) {
 
   const stagesWithIds = pipeline.stages.map((stage, index) => ({
     ...stage,
-    nodeId: `node-${index + 1}`
+    nodeId: stage.id ?? `node-${index + 1}`
   }))
 
   const stages = fuseRetryStages(stagesWithIds, pipelineId)
