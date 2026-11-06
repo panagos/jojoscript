@@ -1,6 +1,6 @@
 import { maskNonCode } from './lexer.js'
 
-const FUNCTION_HEAD = /^[ \t]*(?:export[ \t]+)?(async[ \t]+)?fn[ \t]+([A-Za-z_$][\w$]*)[ \t]*\(/gm
+const FUNCTION_HEAD = /^[ \t]*(?:export[ \t]+)?(?:(?:pure|effectful)[ \t]+)?(async[ \t]+)?(?:(?:pure|effectful)[ \t]+)?fn[ \t]+([A-Za-z_$][\w$]*)[ \t]*\(/gm
 const CLAUSE = /^([ \t]*)(requires|ensures)[ \t]+(.+?)[ \t]*$/
 
 function lineAt(source, offset) {
