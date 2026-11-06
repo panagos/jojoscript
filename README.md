@@ -1,4 +1,4 @@
-# JojoScript 0.10.1
+# JojoScript 1.0.0
 
 JojoScript is a lightweight language and runtime for data pipelines and agent
 workflows, built on JavaScript.

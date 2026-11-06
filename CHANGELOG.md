@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — LLM-readable execution language
+
+JojoScript can now be inspected, generated, validated, and transformed by
+humans, tools, and LLMs alike through a deterministic CLI: `jojo explain`,
+`plan`, `generate`, `check`, `describe`, `simulate`, and `why`.
 
 ### Language
 
