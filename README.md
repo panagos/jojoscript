@@ -24,6 +24,7 @@ npm install @panagos/jojoscript
 jojo build <file.jojo|directory> [--out <directory>] [--watch]
 jojo run <file.jojo> [--out <directory>]
 jojo graph <file.jojo> [--format text|dot]
+jojo explain <file.jojo> [--format text|json]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -36,6 +37,7 @@ jojo --help
 - `jojo build src --watch` rebuilds whenever a `.jojo` file under `src` changes.
 - `jojo run app.jojo` compiles a single file and immediately runs it with Node — useful for a fast dev loop.
 - `jojo graph app.jojo` prints a static pipeline graph; use `--format dot` for Graphviz output.
+- `jojo explain app.jojo` describes what each pipeline means (stages, effects, properties) without running it; use `--format json` for tools and LLMs. See [Explaining pipelines](#explaining-pipelines).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -324,6 +326,76 @@ auto-imported):
 
 See [ITERATOR_PROPOSAL.md](ITERATOR_PROPOSAL.md) and [ITERATORS.md](ITERATORS.md)
 for the full laziness/memory model.
+
+## Explaining pipelines
+
+`jojo explain` lets a person, a tool, or an LLM ask JojoScript what a program
+means instead of inferring it from source. It is static: nothing is executed.
+
+```jojo
+effect enrichOrder(order)
+
+export async fn enrichPaidOrders(orders) {
+  return handle {
+    enrichOrder: order => ({ ...order, region: "EU" })
+  } {
+    return orders
+      |> filter(order => order.status == "paid")
+      |> parallel(4)
+      |> map(enrichOrder)
+      |> checkpoint("enriched-orders")
+      |> toArrayAsync
+      |> await
+  }
+}
+```
+
+```
+$ jojo explain orders.jojo
+PIPELINE enrichPaidOrders
+
+STAGES
+  1 source       orders
+  2 filter       pure
+  3 parallel     concurrency=4
+  4 map          effectful: enrichOrder
+  5 checkpoint   enriched-orders
+  6 toArrayAsync pure
+  7 await        control
+
+EFFECTS
+  enrichOrder (handler declared)
+
+PROPERTIES
+  lazy: true
+  parallel: true
+  resumable: true
+  deterministic: false
+```
+
+`jojo explain orders.jojo --format json` prints the same information as an
+array of `{ name, id, stages, effects, properties }` objects, and
+`explainPipelines(source)` / `renderExplanationText(explanation)` are exported
+from `@panagos/jojoscript` for programmatic use.
+
+- **name** is inferred: the variable or property a pipeline is assigned to
+  (`paid := orders |> ...`), the `fn` name of an expression function, or the
+  enclosing named function of a `return` pipeline; otherwise `pipeline-N`.
+- **stages** list each stage's type, raw `args`, referenced `effects`, and a
+  `detail`: the source expression, `concurrency=N` for `parallel`, `size=N` for
+  `batch`, the checkpoint name, `control` for `await`/`catch`/`orElse`/`pass`,
+  or `pure`/`effectful: <effects>`.
+- **effects** are the declared effects the pipeline references, each with the
+  same best-effort `staticallyHandled` signal as `jojo graph`.
+- **properties**: `lazy` (no `sort`/`sortBy`/`groupBy`/`partition`
+  materialization boundary), `parallel` (has a `parallel` stage), `resumable`
+  (has a `checkpoint` stage), `deterministic` (references no declared effect).
+
+Purity and determinism only reflect references to declared `effect`s: a stage
+calling ordinary JavaScript such as `Math.random()` or `fetch()` directly is
+still reported as `pure`. Route external work through effects to make it
+visible. See
+[example/src/application/explain-example.jojo](example/src/application/explain-example.jojo).
 
 ## Effect Handlers
 

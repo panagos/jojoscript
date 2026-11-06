@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Tooling
+
+- Added `jojo explain <file.jojo> [--format text|json]`, a static description of
+  each pipeline: inferred name, stages, referenced effects, and lazy, parallel,
+  resumable, and deterministic properties.
+- Exported `explainPipelines` and `renderExplanationText` from the compiler
+  entry point.
+
+### Examples and tests
+
+- Added an order-enrichment example whose test runs the pipeline and checks
+  its `explainPipelines` and `jojo explain` output.
+
 ## 0.10.1 — MCP and A2A integration
 
 ### Runtime
