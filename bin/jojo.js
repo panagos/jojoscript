@@ -25,9 +25,9 @@ function usage() {
 Usage:
   jojo build <file.jojo|directory> [--out <directory>] [--watch]
   jojo run <file.jojo> [--out <directory>]
-  jojo graph <file.jojo> [--format text|dot]
-  jojo explain <file.jojo> [--format text|json]
-  jojo plan <file.jojo> [--format json]
+  jojo graph <file.jojo> [--format text|dot] [--pipeline <name>]
+  jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
+  jojo plan <file.jojo> [--format json] [--pipeline <name>]
   jojo generate <plan.json>
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
@@ -161,10 +161,18 @@ function requireSingleFile(command, input) {
   return resolvedInput
 }
 
-function graph(input, format) {
+function selectPipelines(items, names, wanted) {
+  if (!wanted) return items
+  const selected = items.filter((_, index) => names[index] === wanted)
+  if (!selected.length) fail(`No pipeline named "${wanted}"`)
+  return selected
+}
+
+function graph(input, format, wanted) {
   const resolvedInput = requireSingleFile('graph', input)
   const source = fs.readFileSync(resolvedInput, 'utf8')
-  const pipelines = analyzePipelines(source)
+  const names = explainPipelines(source).map(explanation => explanation.name)
+  const pipelines = selectPipelines(analyzePipelines(source), names, wanted)
 
   if (!pipelines.length) {
     console.log('No pipelines found.')
@@ -177,9 +185,10 @@ function graph(input, format) {
   })
 }
 
-function explain(input, format) {
+function explain(input, format, wanted) {
   const resolvedInput = requireSingleFile('explain', input)
-  const explanations = explainPipelines(fs.readFileSync(resolvedInput, 'utf8'))
+  const all = explainPipelines(fs.readFileSync(resolvedInput, 'utf8'))
+  const explanations = selectPipelines(all, all.map(explanation => explanation.name), wanted)
 
   if (format === 'json') {
     console.log(JSON.stringify(explanations, null, 2))
@@ -194,9 +203,11 @@ function explain(input, format) {
   console.log(explanations.map(renderExplanationText).join('\n\n'))
 }
 
-function plan(input) {
+function plan(input, wanted) {
   const resolvedInput = requireSingleFile('plan', input)
-  console.log(JSON.stringify(planPipelines(fs.readFileSync(resolvedInput, 'utf8')), null, 2))
+  const fullPlan = planPipelines(fs.readFileSync(resolvedInput, 'utf8'))
+  const pipelines = selectPipelines(fullPlan.pipelines, fullPlan.pipelines.map(item => item.pipeline), wanted)
+  console.log(JSON.stringify({ ...fullPlan, pipelines }, null, 2))
 }
 
 function generate(input) {
@@ -324,9 +335,16 @@ function replay(input, out, from) {
 
 function parseFormatFlags(args, startIndex, formats) {
   let format = formats[0]
+  let pipeline = null
 
   for (let i = startIndex; i < args.length; i++) {
     const arg = args[i]
+
+    if (arg === '--pipeline' || arg.startsWith('--pipeline=')) {
+      pipeline = arg === '--pipeline' ? args[++i] : arg.slice('--pipeline='.length)
+      if (!pipeline) fail('--pipeline requires a pipeline name')
+      continue
+    }
 
     if (arg === '--format' || arg.startsWith('--format=')) {
       const value = arg === '--format' ? args[++i] : arg.slice('--format='.length)
@@ -338,7 +356,7 @@ function parseFormatFlags(args, startIndex, formats) {
     fail(`Unknown option: ${arg}`)
   }
 
-  return { format }
+  return { format, pipeline }
 }
 
 function parseReplayFlags(args, startIndex) {
@@ -429,14 +447,14 @@ function main() {
   const input = args[1]
 
   if (command === 'graph') {
-    const { format } = parseFormatFlags(args, 2, ['text', 'dot'])
-    graph(input, format)
+    const { format, pipeline } = parseFormatFlags(args, 2, ['text', 'dot'])
+    graph(input, format, pipeline)
     return
   }
 
   if (command === 'plan') {
-    parseFormatFlags(args, 2, ['json'])
-    plan(input)
+    const { pipeline } = parseFormatFlags(args, 2, ['json'])
+    plan(input, pipeline)
     return
   }
 
@@ -447,8 +465,8 @@ function main() {
   }
 
   if (command === 'explain') {
-    const { format } = parseFormatFlags(args, 2, ['text', 'json'])
-    explain(input, format)
+    const { format, pipeline } = parseFormatFlags(args, 2, ['text', 'json'])
+    explain(input, format, pipeline)
     return
   }
 
