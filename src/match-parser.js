@@ -20,10 +20,11 @@ import { tokenize, significantTokens } from './lexer.js'
  *     return handleUnknown();
  *   })()
  *
- * This is deliberately a value-equality match, not structural pattern
- * matching: patterns are plain expressions compared with `===`, and arms
- * are single expressions (no statement blocks). The default `_` arm is
- * required and must be last.
+ * Arms are single expressions (no statement blocks), separated by commas or
+ * newlines. Object patterns such as `{ status: "ok", value }` match
+ * structurally; any other pattern is compared with `===`. A value-equality
+ * match requires a final `_` arm, while a structural match without one
+ * throws when nothing matches.
  */
 
 function text(source, tokens) {
@@ -125,8 +126,127 @@ function findMatchBlock(source, tokens, index) {
   return { subjectTokens, braceOpen, braceClose }
 }
 
+function isNewlineBetween(source, previous, next) {
+  return source.slice(previous.end, next.start).includes('\n')
+}
+
+function hasTopLevelArrowBeforeNewline(source, tokens, start) {
+  let depth = 0
+  for (let i = start; i < tokens.length; i++) {
+    if (i > start && depth === 0 && isNewlineBetween(source, tokens[i - 1], tokens[i])) return false
+    const value = tokens[i].value
+    if (value === '(' || value === '[' || value === '{') depth++
+    else if (value === ')' || value === ']' || value === '}') depth--
+    else if (value === '=>' && depth === 0) return true
+  }
+  return false
+}
+
+/*
+ * A new line starts a new arm only once the current arm has its `=>` and the
+ * new line has its own top-level `=>`, so multi-line arm expressions still work.
+ */
+function splitArms(source, tokens) {
+  const result = []
+  let start = 0
+  let depth = 0
+  let seenArrow = false
+
+  for (let i = 0; i < tokens.length; i++) {
+    const value = tokens[i].value
+
+    if (
+      depth === 0 && seenArrow && i > start &&
+      tokens[i - 1].value !== '=>' &&
+      isNewlineBetween(source, tokens[i - 1], tokens[i]) &&
+      hasTopLevelArrowBeforeNewline(source, tokens, i)
+    ) {
+      result.push(tokens.slice(start, i))
+      start = i
+      seenArrow = false
+    }
+
+    if (value === '(' || value === '[' || value === '{') depth++
+    else if (value === ')' || value === ']' || value === '}') depth--
+    else if (value === '=>' && depth === 0) seenArrow = true
+    else if (value === ',' && depth === 0) {
+      result.push(tokens.slice(start, i))
+      start = i + 1
+      seenArrow = false
+    }
+  }
+
+  if (start < tokens.length) result.push(tokens.slice(start))
+  return result
+}
+
+const LITERAL_IDENTIFIERS = new Set(['true', 'false', 'null', 'undefined'])
+
+function isBindingName(tokens) {
+  return tokens.length === 1 &&
+    tokens[0].type === 'identifier' &&
+    !LITERAL_IDENTIFIERS.has(tokens[0].value)
+}
+
+function matchingClose(tokens, openIndex) {
+  let depth = 0
+  for (let i = openIndex; i < tokens.length; i++) {
+    const value = tokens[i].value
+    if (value === '(' || value === '[' || value === '{') depth++
+    else if (value === ')' || value === ']' || value === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+function isObjectPattern(tokens) {
+  return tokens[0]?.value === '{' && matchingClose(tokens, 0) === tokens.length - 1
+}
+
+/*
+ * Inside an object pattern a bare name binds the field, while literals and
+ * other expressions are compared with `===`.
+ */
+function compilePattern(source, tokens, accessor, nested) {
+  if (tokens.length === 1 && tokens[0].value === '_') return { conditions: [], bindings: [] }
+
+  if (isObjectPattern(tokens)) return compileObjectPattern(source, tokens, accessor)
+
+  if (nested && isBindingName(tokens)) {
+    return { conditions: [], bindings: [[tokens[0].value, accessor]] }
+  }
+
+  return { conditions: [`${accessor} === (${text(source, tokens)})`], bindings: [] }
+}
+
+function compileObjectPattern(source, tokens, accessor) {
+  const conditions = [`${accessor} !== null && typeof ${accessor} === "object"`]
+  const bindings = []
+
+  for (const field of splitTopLevelCommas(tokens.slice(1, -1)).filter(group => group.length)) {
+    const colon = field.findIndex(token => token.value === ':')
+    const keyTokens = colon === -1 ? field : field.slice(0, colon)
+    const valueTokens = colon === -1 ? field : field.slice(colon + 1)
+
+    if (keyTokens.length !== 1 || !['identifier', 'string'].includes(keyTokens[0].type) || !valueTokens.length) {
+      throw new SyntaxError(`Invalid match pattern field: ${text(source, field)}`)
+    }
+
+    const key = keyTokens[0].type === 'string' ? keyTokens[0].value : JSON.stringify(keyTokens[0].value)
+    const fieldAccessor = `${accessor}[${key}]`
+    const pattern = compilePattern(source, valueTokens, fieldAccessor, true)
+
+    conditions.push(`${key} in ${accessor}`, ...pattern.conditions)
+    bindings.push(...pattern.bindings)
+  }
+
+  return { conditions, bindings }
+}
+
 function parseArms(source, tokens) {
-  const groups = splitTopLevelCommas(tokens).filter(group => group.length)
+  const groups = splitArms(source, tokens).filter(group => group.length)
 
   if (!groups.length) {
     throw new SyntaxError('match requires at least one arm')
@@ -147,33 +267,49 @@ function parseArms(source, tokens) {
       throw new SyntaxError(`Invalid match arm, expected \`pattern => expression\`:\n${text(source, group)}`)
     }
 
-    const pattern = text(source, group.slice(0, arrowIndex)).trim()
+    const patternTokens = group.slice(0, arrowIndex)
+    const pattern = text(source, patternTokens).trim()
     const expression = text(source, group.slice(arrowIndex + 1)).trim()
 
     if (!pattern || !expression) {
       throw new SyntaxError(`Invalid match arm, expected \`pattern => expression\`:\n${text(source, group)}`)
     }
 
-    return { pattern, expression }
+    return {
+      pattern,
+      expression,
+      structural: isObjectPattern(patternTokens),
+      compiled: compilePattern(source, patternTokens, '__match', false)
+    }
   })
+}
+
+function emitArm({ pattern, expression, compiled: { conditions, bindings } }) {
+  if (pattern === '_') return `  return ${expression};`
+
+  const condition = conditions.map(item => conditions.length > 1 ? `(${item})` : item).join(' && ')
+  if (!bindings.length) return `  if (${condition}) return ${expression};`
+
+  const declarations = bindings.map(([name, accessor]) => `${name} = ${accessor}`).join(', ')
+  return `  if (${condition}) { const ${declarations}; return ${expression}; }`
 }
 
 function emitMatch(subject, arms) {
   const defaultIndex = arms.findIndex(arm => arm.pattern === '_')
+  const structural = arms.some(arm => arm.structural)
 
-  if (defaultIndex === -1) {
+  if (defaultIndex === -1 && !structural) {
     throw new SyntaxError('match requires a default `_` arm')
   }
 
-  if (defaultIndex !== arms.length - 1) {
+  if (defaultIndex !== -1 && defaultIndex !== arms.length - 1) {
     throw new SyntaxError('the default `_` arm must be the last arm in match')
   }
 
-  const lines = arms.map(arm =>
-    arm.pattern === '_'
-      ? `  return ${arm.expression};`
-      : `  if (__match === (${arm.pattern})) return ${arm.expression};`
-  )
+  const lines = arms.map(emitArm)
+  if (defaultIndex === -1) {
+    lines.push("  throw new TypeError('No match arm matched the value');")
+  }
 
   return `(() => {\n  const __match = ${subject};\n${lines.join('\n')}\n})()`
 }
