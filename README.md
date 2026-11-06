@@ -25,6 +25,8 @@ jojo build <file.jojo|directory> [--out <directory>] [--watch]
 jojo run <file.jojo> [--out <directory>]
 jojo graph <file.jojo> [--format text|dot]
 jojo explain <file.jojo> [--format text|json]
+jojo plan <file.jojo> [--format json]
+jojo generate <plan.json>
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -38,6 +40,7 @@ jojo --help
 - `jojo run app.jojo` compiles a single file and immediately runs it with Node — useful for a fast dev loop.
 - `jojo graph app.jojo` prints a static pipeline graph; use `--format dot` for Graphviz output.
 - `jojo explain app.jojo` describes what each pipeline means (stages, effects, properties) without running it; use `--format json` for tools and LLMs. See [Explaining pipelines](#explaining-pipelines).
+- `jojo plan app.jojo` prints a canonical JSON execution plan, and `jojo generate plan.json` turns a plan back into validated JojoScript. See [Machine-readable execution plans](#machine-readable-execution-plans).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -396,6 +399,84 @@ calling ordinary JavaScript such as `Math.random()` or `fetch()` directly is
 still reported as `pure`. Route external work through effects to make it
 visible. See
 [example/src/application/explain-example.jojo](example/src/application/explain-example.jojo).
+
+## Machine-readable execution plans
+
+`jojo plan` gives every pipeline a stable, simple JSON representation, and
+`jojo generate` turns such a plan back into JojoScript. A tool or an LLM can
+read a program as data, or write a plan and have JojoScript validate it:
+
+```
+Jojo source -> jojo plan -> JSON plan -> LLM
+LLM -> JSON plan -> jojo generate -> validated Jojo program
+```
+
+```jojo
+export fn topCustomers(customers) {
+  return customers
+    |> filter(customer => customer.active)
+    |> sortBy(customer => -customer.spend)
+    |> take(2)
+    |> map(customer => customer.name)
+    |> toArray
+}
+```
+
+```
+$ jojo plan customers.jojo --format=json
+{
+  "version": 1,
+  "pipelines": [
+    {
+      "pipeline": "topCustomers",
+      "id": "…",
+      "stages": [
+        { "type": "source", "expression": "customers" },
+        { "type": "filter", "expression": "customer => customer.active" },
+        { "type": "sortBy", "expression": "customer => -customer.spend" },
+        { "type": "take", "args": ["2"] },
+        { "type": "map", "expression": "customer => customer.name" },
+        { "type": "toArray" }
+      ]
+    }
+  ]
+}
+```
+
+(Printed with two-space indentation; condensed here.)
+
+The plan format, version 1:
+
+| Field | Meaning |
+|---|---|
+| `version` | Always `1` for this format |
+| `pipelines[].pipeline` | Inferred name (same rules as `jojo explain`), or `null` for an unnamed pipeline |
+| `pipelines[].id` | The pipeline's deterministic hash (informational, ignored by `generate`) |
+| `pipelines[].stages[0]` | `{ "type": "source", "expression": "..." }` |
+| `parallel` / `batch` | `concurrency` / `size` as a positive integer |
+| `checkpoint` | `name` as a string |
+| `map`, `filter`, `flatMap`, `tap`, `mapAsync`, `filterAsync`, `find`, `some`, `every`, `sortBy`, `distinctBy`, `groupBy`, `partition`, `catch` | `expression`: the single function argument as source text |
+| any other stage | `args`: argument source strings, omitted when there are none |
+| `.prop` / `.method()` | `{ "type": ".length" }` reads a property; `{ "type": ".trim", "args": [] }` calls it |
+
+A stage whose setting is not a literal (`parallel(limit)`) keeps it in `args`
+instead, so a plan is always lossless. Arguments stay source text: the plan
+describes computation without evaluating it.
+
+`jojo generate plan.json` (or `planToJojo(plan)`) emits one
+`name := source |> ...` statement per pipeline. It rejects unknown fields,
+wrong types, misplaced `source` stages, and duplicate names with the exact path
+of the problem (for example
+`Invalid plan: pipelines[0].stages[2].concurrency must be a positive integer`),
+then compiles the program and checks that it parses as JavaScript, without
+running it. The generated program contains only the pipelines: their source
+variables, custom stage functions, and effects must be supplied by
+surrounding code. Validation is not a sandbox: expressions are code, so
+review a generated program as you would any code you did not write.
+
+`planPipelines(source)` and `planToJojo(plan)` are exported from
+`@panagos/jojoscript`. See
+[example/src/application/plan-example.jojo](example/src/application/plan-example.jojo).
 
 ## Effect Handlers
 

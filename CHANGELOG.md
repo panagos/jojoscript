@@ -9,11 +9,18 @@
   resumable, and deterministic properties.
 - Exported `explainPipelines` and `renderExplanationText` from the compiler
   entry point.
+- Added `jojo plan <file.jojo> [--format json]`, a stable, versioned JSON
+  execution plan of every pipeline, and `jojo generate <plan.json>`, which
+  validates a plan and turns it back into JojoScript.
+- Exported `planPipelines` and `planToJojo` from the compiler entry point.
+- `--format` options now also accept the `--format=value` form.
 
 ### Examples and tests
 
 - Added an order-enrichment example whose test runs the pipeline and checks
   its `explainPipelines` and `jojo explain` output.
+- Added a customer-ranking example whose test plans the pipeline, regenerates
+  it with `jojo generate`, and runs the regenerated program.
 
 ## 0.10.1 — MCP and A2A integration
 

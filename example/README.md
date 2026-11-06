@@ -28,6 +28,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/typed-functions.jojo` | Optional type annotations | Compiled to JSDoc, never checked at compile time |
 | `application/a2a-enrichment.jojo` | A2A client | Discovers a remote agent, sends an enrichment message, and polls its task |
 | `application/explain-example.jojo` | `jojo explain` | Static description of a pipeline's stages, effects, and properties |
+| `application/plan-example.jojo` | `jojo plan` / `jojo generate` | JSON execution plan, regenerated into a runnable program |
 | `application/pipeline-placeholder-example.jojo` | Pipeline `_` placeholder | Controls where the piped value lands in a stage's arguments |
 | `application/pipeline-error-handling-example.jojo` | Pipeline `catch` / `orElse` | Inline error handling without leaving pipeline syntax |
 | `application/async-pipeline-example.jojo` | `mapAsync` / `filterAsync` / `toArrayAsync` / `\|> await` | Async iterator pipelines |
