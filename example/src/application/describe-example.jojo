@@ -1,0 +1,41 @@
+/*
+ * A module combining a tagged union, an effect, a contract, purity, and a
+ * named pipeline. `jojo describe` reports all of them as one JSON document.
+ */
+
+effect storeInvoice(invoice)
+
+export type Invoice =
+  | Open(id, amount)
+  | Settled(id)
+
+pure fn toInvoice(record)
+  requires record.amount >= 0
+{
+  return record.paid ? Settled(record.id) : Open(record.id, record.amount)
+}
+
+effectful fn store(invoice) {
+  return storeInvoice(invoice)
+}
+
+pipeline openInvoices {
+  source records
+  |> filter(record => !record.paid)   @unpaid
+  |> map(toInvoice)                   @classify
+  |> checkpoint("open-invoices")
+}
+
+export async fn ingestInvoices(records, stored) {
+  return handle {
+    storeInvoice: invoice => {
+      stored.push(invoice)
+      return invoice
+    }
+  } {
+    return openInvoices(records)
+      |> mapAsync(store)
+      |> toArrayAsync
+      |> await
+  }
+}
