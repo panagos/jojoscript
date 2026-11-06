@@ -172,6 +172,38 @@ functions are allowed. `jojo explain` reports a stage that uses an
 it does for declared effects. See
 [example/src/application/purity-example.jojo](example/src/application/purity-example.jojo).
 
+### Function contracts
+
+A block function can state what it expects and what it guarantees. Each
+clause goes on its own line between the parameter list and the opening `{`:
+
+```jojo
+fn applyDiscount(price, percent)
+  requires price >= 0
+  requires percent >= 0 && percent <= 100
+  ensures result >= 0 && result <= price
+{
+  return price - price * percent / 100
+}
+```
+
+`requires` clauses are checked on entry, in order, before the body runs.
+`ensures` clauses are checked after it, with the return value available as
+`result` (async functions are awaited first). The body runs inside an arrow
+function, so `this` and `arguments` keep referring to the declared function.
+A broken clause throws `ContractError`:
+
+```
+ContractError: Contract violated: applyDiscount requires percent >= 0 && percent <= 100
+```
+
+The error carries `functionName`, `kind` (`"requires"` or `"ensures"`), and
+`condition`, and is non-retryable, so `retry()` never repeats a call that
+broke its contract. Contract clauses keep the source line count. Contracts
+apply to block functions only, and a function using `ensures` should not
+have a parameter named `result`. See
+[example/src/application/contracts-example.jojo](example/src/application/contracts-example.jojo).
+
 ### Optional type annotations
 
 Parameters and return values can be annotated. Annotations are **never

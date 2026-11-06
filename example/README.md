@@ -26,6 +26,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/destructuring-example.jojo` | Destructuring & multi-binding declarations | `{ a, b } := x`, `[h, ...t] := x`, `a, b := 1, 2` |
 | `application/match-example.jojo` | `match` expression | Value/boolean-pattern matching with a default `_` arm |
 | `application/structured-match-example.jojo` | Structured `match` | Object patterns with literal fields, bindings, and nesting |
+| `application/contracts-example.jojo` | Function contracts | `requires` / `ensures` clauses checked at runtime |
 | `application/purity-example.jojo` | `pure fn` / `effectful fn` | Compiler-checked separation of pure normalizing and effectful saving |
 | `application/tagged-unions-example.jojo` | Tagged unions | `type` variants with constructor patterns in `match` |
 | `application/typed-functions.jojo` | Optional type annotations | Compiled to JSDoc, never checked at compile time |
