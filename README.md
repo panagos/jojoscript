@@ -28,6 +28,7 @@ jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
 jojo plan <file.jojo> [--format json] [--pipeline <name>]
 jojo generate <plan.json>
 jojo check <file.jojo|plan.json> [--format text|json] [--machine]
+jojo describe <file.jojo> [--pipeline <name>]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -44,6 +45,7 @@ jojo --help
 - `jojo plan app.jojo` prints a canonical JSON execution plan, and `jojo generate plan.json` turns a plan back into validated JojoScript. See [Machine-readable execution plans](#machine-readable-execution-plans).
 - `graph`, `explain`, and `plan` accept `--pipeline <name>` to select one pipeline by its (inferred or [declared](#named-pipelines)) name.
 - `jojo check app.jojo` (or `plan.json`) reports structured diagnostics with codes, lines, and suggestions, and exits 1 on errors; `--machine` prints JSON. See [Checking programs](#checking-programs).
+- `jojo describe app.jojo` prints one JSON document describing the pipelines, effects, functions, and types in a file. See [Describing programs](#describing-programs).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -713,6 +715,52 @@ function's parameters, literals, and operators, so `jojo check` never runs
 program code. `checkSource(source)`, `checkPlan(plan)`, and
 `renderCheckText(result)` are exported from `@panagos/jojoscript`. See
 [example/src/application/check-example.jojo](example/src/application/check-example.jojo).
+
+## Describing programs
+
+`jojo describe` prints one self-describing JSON document for a file, so a tool
+or an LLM can learn what a program contains without reading its source:
+
+```json
+{
+  "language": "jojo",
+  "version": "1",
+  "pipelines": [
+    {
+      "name": "openInvoices",
+      "inputs": ["records"],
+      "effects": [],
+      "stages": [
+        { "id": "unpaid", "operation": "filter", "expression": "record => !record.paid" },
+        { "id": "classify", "operation": "map", "expression": "toInvoice" },
+        { "id": "node-3", "operation": "checkpoint", "name": "open-invoices" }
+      ],
+      "properties": { "lazy": true, "parallel": false, "resumable": true, "deterministic": true }
+    }
+  ],
+  "effects": [{ "name": "storeInvoice", "params": ["invoice"], "handled": true }],
+  "functions": [
+    { "name": "toInvoice", "line": 12, "purity": "pure", "requires": ["record.amount >= 0"], "ensures": [] }
+  ],
+  "types": [
+    { "name": "Invoice", "variants": [{ "name": "Open", "fields": ["id", "amount"] }, { "name": "Settled", "fields": ["id"] }] }
+  ]
+}
+```
+
+- `pipelines` uses the same names, effects, and properties as `jojo explain`,
+  and the same stage fields as `jojo plan`. A pipeline whose source is an
+  identifier lists it in `inputs`. A stage's `id` is its
+  [stage ID](#stage-ids), or the runtime node id (`node-3`) used by
+  `jojo graph` and `jojo profile`.
+- `effects` lists declared effects and whether a handler is statically
+  visible in the file.
+- `functions` lists functions that declare a purity or contracts.
+- `types` lists tagged unions with their variants and fields.
+
+`--pipeline <name>` limits `pipelines` to one pipeline. `describeSource(source)`
+is exported from `@panagos/jojoscript`. See
+[example/src/application/describe-example.jojo](example/src/application/describe-example.jojo).
 
 ## Effect Handlers
 

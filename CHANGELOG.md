@@ -51,6 +51,9 @@
   violations, statically broken contracts, non-exhaustive tagged-union
   matches, constructor arity, and invalid plans. Exits 1 on errors.
 - Exported `checkSource`, `checkPlan`, and `renderCheckText`.
+- Added `jojo describe <file.jojo> [--pipeline <name>]`, a self-describing
+  JSON document of a file's pipelines (inputs, effects, stages, properties),
+  effects, annotated functions, and tagged unions. Exported `describeSource`.
 
 ### Examples and tests
 
@@ -65,6 +68,8 @@
 - Added an order-snapshot example for deterministic serialization.
 - Added a shipping-quote example whose test runs `jojo check` on the module
   and on a broken edit of it.
+- Added an invoice-ingestion example whose test checks its `jojo describe`
+  output.
 - Raised unit test coverage above 85% (lines, branches, and functions) for
   every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates

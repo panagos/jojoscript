@@ -31,6 +31,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/named-pipeline-example.jojo` | Named pipelines | `pipeline name { source ... }` compiled to a function |
 | `application/serialization-example.jojo` | `toJson` / `fromJson` | Canonical, round-tripping order snapshots |
 | `application/check-example.jojo` | `jojo check` | Module verified statically; its test checks a broken edit |
+| `application/describe-example.jojo` | `jojo describe` | Types, effects, contracts, purity, and a named pipeline in one description |
 | `application/purity-example.jojo` | `pure fn` / `effectful fn` | Compiler-checked separation of pure normalizing and effectful saving |
 | `application/tagged-unions-example.jojo` | Tagged unions | `type` variants with constructor patterns in `match` |
 | `application/typed-functions.jojo` | Optional type annotations | Compiled to JSDoc, never checked at compile time |
