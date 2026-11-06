@@ -1,0 +1,13 @@
+/*
+ * `jojo plan src/application/plan-example.jojo` prints this pipeline as a
+ * JSON plan, and `jojo generate` turns such a plan back into JojoScript.
+ */
+
+export fn topCustomers(customers) {
+  return customers
+    |> filter(customer => customer.active)
+    |> sortBy(customer => -customer.spend)
+    |> take(2)
+    |> map(customer => customer.name)
+    |> toArray
+}
