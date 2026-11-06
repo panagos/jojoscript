@@ -1,0 +1,12 @@
+/*
+ * Object patterns match on the shape of a value: literal fields are compared,
+ * bare names bind fields, and nested patterns look inside nested objects.
+ */
+
+export fn summarizeResponse(response) {
+  return match response {
+    { status: "ok", data: { items } } => `${items.length} items`
+    { status: "error", error: { code: 404 } } => "not found"
+    { status: "error", error } => `failed: ${error.message}`
+  }
+}
