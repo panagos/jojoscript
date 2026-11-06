@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Editor support
+
+- VS Code extension 0.2.0 highlights the 1.0 syntax: named pipelines and
+  their `source` line, `@stage-id` labels, tagged union declarations and
+  constructor patterns, the `_ =>` arm, `effect` declarations, `handle`
+  blocks, `pure` / `effectful` modifiers, and `requires` / `ensures`
+  clauses. Comparison operators in contracts no longer end the function
+  signature scope early.
+
 ## 1.0.0 — LLM-readable execution language
 
 JojoScript can now be inspected, generated, validated, and transformed by

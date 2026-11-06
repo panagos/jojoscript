@@ -1525,7 +1525,9 @@ boundaries because they need the complete input. See
 ## Editor support
 
 See [editors/vscode](editors/vscode) for a VS Code extension providing syntax
-highlighting and a `Format Document` provider for `.jojo` files. It is not
+highlighting for all JojoScript syntax (pipelines, stage IDs, named
+pipelines, `match` patterns, tagged unions, effects, purity, and contracts)
+and a `Format Document` provider for `.jojo` files. It is not
 published to the marketplace; package it with `vsce package` and install the
 resulting `.vsix` locally.
 
