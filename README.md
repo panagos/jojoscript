@@ -1123,6 +1123,38 @@ never through `|>`) and also uses pipeline syntax with overlapping names,
 the compiler merges the auto-imported names into the existing import
 instead of emitting a second, colliding import declaration.
 
+### Deterministic serialization
+
+`toJson(value, { indent })` and `fromJson(text)` give JojoScript values one
+canonical JSON form:
+
+```jojo
+import { toJson, fromJson } from "@panagos/jojoscript/runtime"
+
+snapshot := toJson({ name: "John", id: 42, placedAt: new Date(0) })
+// {"id":42,"name":"John","placedAt":{"$type":"Date","value":"1970-01-01T00:00:00.000Z"}}
+
+order := fromJson(snapshot)   // order.placedAt is a Date again
+```
+
+- Object keys are sorted recursively, so equal values always serialize to
+  identical text, whatever order their properties were created in.
+- Values plain JSON would lose or change are written as `{ "$type": ... }`
+  objects: `Date`, `Map`, `Set`, `BigInt`, `undefined`, `NaN`, `Infinity`,
+  `-Infinity`, `-0`, and `Error` (name, message, own fields such as a
+  `ContractError`'s `kind`, and `cause`). `fromJson` restores each exactly.
+- An ordinary object that has its own `$type` key is wrapped, so tags are
+  never ambiguous. Tagged union values are plain objects and serialize as
+  they are. Objects with a `toJSON` method serialize its result.
+- Functions, symbols, and circular structures throw a `TypeError`.
+
+`FileCheckpointStore` writes and reads checkpoints in this format, so
+checkpointed dates, maps, and sets resume as themselves. Checkpoint files
+written as plain JSON before this change still load. Pipelines and execution
+plans have their own canonical form: the [`jojo plan`](#machine-readable-execution-plans)
+JSON. See
+[example/src/application/serialization-example.jojo](example/src/application/serialization-example.jojo).
+
 ### MCP support
 
 JojoScript includes a small MCP-style JSON-RPC runtime for Node.js. It does

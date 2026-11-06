@@ -22,6 +22,14 @@
 - Added named pipeline declarations (`pipeline name { source input |> ... }`),
   compiled to functions that take their source as input.
 
+### Runtime
+
+- Added `toJson` and `fromJson`: canonical JSON with sorted keys and tagged
+  `Date`, `Map`, `Set`, `BigInt`, `undefined`, special numbers, and `Error`
+  values that round-trip exactly.
+- `FileCheckpointStore` now writes and reads checkpoints with `toJson` /
+  `fromJson`; plain-JSON checkpoint files still load.
+
 ### Tooling
 
 - Added `jojo explain <file.jojo> [--format text|json]`, a static description of
@@ -48,6 +56,7 @@
 - Added a discount-pricing example for function contracts.
 - Added a shipment example for stage IDs.
 - Added an order-enrichment example for named pipelines.
+- Added an order-snapshot example for deterministic serialization.
 - Raised unit test coverage above 85% (lines, branches, and functions) for
   every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
