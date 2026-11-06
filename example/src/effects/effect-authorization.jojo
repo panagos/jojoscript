@@ -5,26 +5,27 @@ effect lookupSupplier(id)
 effect sendSupplierInvitation(supplier)
 effect approveOffer(tender)
 
-fn procurementPolicy(invocation) {
-  if (invocation.name === "readTender" || invocation.name === "lookupSupplier") {
-    return true
-  }
+const CAPABILITY_REASONS = {
+  sendSupplierInvitation: "Supplier invitations require the invitation capability",
+  approveOffer: "Offer approvals require the approval capability"
+}
 
-  if (invocation.name === "sendSupplierInvitation") {
-    return {
-      allowed: false,
-      reason: "Supplier invitations require the invitation capability"
+fn procurementPolicy(grantedCapabilities) {
+  return invocation => {
+    if (invocation.name === "readTender" || invocation.name === "lookupSupplier") {
+      return true
     }
-  }
 
-  return {
-    allowed: false,
-    reason: "Offer approvals require the approval capability"
+    if (grantedCapabilities.includes(invocation.name)) {
+      return true
+    }
+
+    return { allowed: false, reason: CAPABILITY_REASONS[invocation.name] }
   }
 }
 
-export async fn reviewTender(tenderId, invitations, approvals) {
-  return await withAuthorization(procurementPolicy, async () => {
+export async fn reviewTender(tenderId, invitations, approvals, grantedCapabilities = []) {
+  return await withAuthorization(procurementPolicy(grantedCapabilities), async () => {
     return handle {
       readTender: id => ({ id, supplierId: "supplier-1" }),
       lookupSupplier: id => ({ id, name: "Northwind Supplies" }),

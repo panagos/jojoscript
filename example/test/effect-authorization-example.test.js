@@ -18,3 +18,14 @@ test("a procurement capability policy permits reads and blocks side-effecting ac
   assert.deepEqual(invitations, [])
   assert.deepEqual(approvals, [])
 })
+
+test("granted capabilities let their handlers run while the rest stay blocked", async () => {
+  const invitations = []
+  const approvals = []
+
+  const result = await reviewTender("tender-2", invitations, approvals, ["sendSupplierInvitation"])
+
+  assert.deepEqual(result.denied, ["Offer approvals require the approval capability"])
+  assert.deepEqual(invitations, [{ id: "supplier-1", name: "Northwind Supplies" }])
+  assert.deepEqual(approvals, [])
+})
