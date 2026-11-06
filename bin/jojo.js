@@ -7,6 +7,7 @@ import { spawn, spawnSync } from 'node:child_process'
 
 import { compile, compileFile, compileDirectory } from '../src/compiler.js'
 import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeline-ir.js'
+import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -24,6 +25,7 @@ Usage:
   jojo build <file.jojo|directory> [--out <directory>] [--watch]
   jojo run <file.jojo> [--out <directory>]
   jojo graph <file.jojo> [--format text|dot]
+  jojo explain <file.jojo> [--format text|json]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -39,6 +41,7 @@ Examples:
   jojo run src/main.jojo
   jojo graph orders.jojo
   jojo graph orders.jojo --format dot
+  jojo explain orders.jojo --format json
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -162,6 +165,23 @@ function graph(input, format) {
   })
 }
 
+function explain(input, format) {
+  const resolvedInput = requireSingleFile('explain', input)
+  const explanations = explainPipelines(fs.readFileSync(resolvedInput, 'utf8'))
+
+  if (format === 'json') {
+    console.log(JSON.stringify(explanations, null, 2))
+    return
+  }
+
+  if (!explanations.length) {
+    console.log('No pipelines found.')
+    return
+  }
+
+  console.log(explanations.map(renderExplanationText).join('\n\n'))
+}
+
 function profile(input) {
   const resolvedInput = requireSingleFile('profile', input)
   const source = fs.readFileSync(resolvedInput, 'utf8')
@@ -272,15 +292,15 @@ function replay(input, out, from) {
   run(input, out)
 }
 
-function parseGraphFlags(args, startIndex) {
-  let format = 'text'
+function parseFormatFlags(args, startIndex, formats) {
+  let format = formats[0]
 
   for (let i = startIndex; i < args.length; i++) {
     const arg = args[i]
 
     if (arg === '--format') {
       const value = args[++i]
-      if (value !== 'text' && value !== 'dot') fail('--format must be "text" or "dot"')
+      if (!formats.includes(value)) fail(`--format must be ${formats.map(name => `"${name}"`).join(' or ')}`)
       format = value
       continue
     }
@@ -350,7 +370,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -379,8 +399,14 @@ function main() {
   const input = args[1]
 
   if (command === 'graph') {
-    const { format } = parseGraphFlags(args, 2)
+    const { format } = parseFormatFlags(args, 2, ['text', 'dot'])
     graph(input, format)
+    return
+  }
+
+  if (command === 'explain') {
+    const { format } = parseFormatFlags(args, 2, ['text', 'json'])
+    explain(input, format)
     return
   }
 

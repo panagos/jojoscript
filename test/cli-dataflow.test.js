@@ -101,6 +101,73 @@ test('graph reports when a file has no pipelines', () => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+test('--help mentions the explain subcommand', () => {
+  const { stdout } = runCli(['--help'])
+  assert.match(stdout, /jojo explain <file.jojo> \[--format text\|json\]/)
+})
+
+test('explain prints the structured meaning of each pipeline', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), PIPELINE_SOURCE)
+
+  const { stdout, code } = runCli(['explain', path.join(dir, 'p.jojo')])
+  assert.equal(code, 0)
+  assert.match(stdout, /^PIPELINE result\n\nSTAGES\n {2}1 source {7}orders\n/)
+  assert.match(stdout, / {2}3 checkpoint {3}enriched\n/)
+  assert.match(stdout, /EFFECTS\n {2}none\n/)
+  assert.match(stdout, /resumable: true/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('explain separates multiple pipelines with a blank line', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), 'a := xs |> count\n\nb := ys |> first\n')
+
+  const { stdout, code } = runCli(['explain', path.join(dir, 'p.jojo')])
+  assert.equal(code, 0)
+  assert.match(stdout, /deterministic: true\n\nPIPELINE b\n/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('explain --format json prints machine-readable explanations', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), PIPELINE_SOURCE)
+
+  const { stdout, code } = runCli(['explain', path.join(dir, 'p.jojo'), '--format', 'json'])
+  const [explanation] = JSON.parse(stdout)
+  assert.equal(code, 0)
+  assert.equal(explanation.name, 'result')
+  assert.deepEqual(explanation.stages.map(stage => stage.type), [
+    'source', 'filter', 'checkpoint', 'mapAsync', 'toArrayAsync', 'await'
+  ])
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('explain rejects an unknown --format value', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), 'orders |> take(5)\n')
+
+  const { stderr, code } = runCli(['explain', path.join(dir, 'p.jojo'), '--format', 'dot'])
+  assert.equal(code, 1)
+  assert.match(stderr, /--format must be "text" or "json"/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('explain reports when a file has no pipelines', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), 'x := 1\n')
+
+  const { stdout, code } = runCli(['explain', path.join(dir, 'p.jojo')])
+  assert.equal(code, 0)
+  assert.match(stdout, /No pipelines found/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test('run, then resume, reuses the checkpoint instead of recomputing it', () => {
   const dir = tempProject()
   const file = path.join(dir, 'p.jojo')
