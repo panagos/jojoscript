@@ -10,6 +10,7 @@ import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeli
 import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
 import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
 import { checkSource, checkPlan, renderCheckText } from '../src/check.js'
+import { describeSource } from '../src/describe.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,6 +32,7 @@ Usage:
   jojo plan <file.jojo> [--format json] [--pipeline <name>]
   jojo generate <plan.json>
   jojo check <file.jojo|plan.json> [--format text|json] [--machine]
+  jojo describe <file.jojo> [--pipeline <name>]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -50,6 +52,7 @@ Examples:
   jojo plan orders.jojo --format=json
   jojo generate orders.plan.json
   jojo check generated.jojo --machine
+  jojo describe orders.jojo
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -224,6 +227,13 @@ function readPlan(file) {
 function generate(input) {
   const resolvedInput = requireSingleFile('generate', input)
   process.stdout.write(planToJojo(readPlan(resolvedInput)))
+}
+
+function describe(input, wanted) {
+  const resolvedInput = requireSingleFile('describe', input)
+  const description = describeSource(fs.readFileSync(resolvedInput, 'utf8'))
+  const pipelines = selectPipelines(description.pipelines, description.pipelines.map(item => item.name), wanted)
+  console.log(JSON.stringify({ ...description, pipelines }, null, 2))
 }
 
 function check(input, format) {
@@ -431,7 +441,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -468,6 +478,12 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'describe') {
+    const { pipeline } = parseFormatFlags(args, 2, ['json'])
+    describe(input, pipeline)
     return
   }
 
