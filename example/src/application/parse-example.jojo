@@ -1,0 +1,24 @@
+/*
+ * Refund routing. `jojo parse parse-example.jojo --json` lists each type,
+ * function, match, and pipeline here as a JSON node with its line.
+ */
+
+export type Decision =
+  | Approved(id)
+  | Escalated(id, team)
+
+fn decide(refund) = refund.amount > 500 ? Escalated(refund.id, "finance") : Approved(refund.id)
+
+export fn describeDecision(decision) {
+  return match decision {
+    Approved(id) => `${id} approved`
+    Escalated(id, team) => `${id} escalated to ${team}`
+  }
+}
+
+export fn routeRefunds(refunds) {
+  return refunds
+    |> map(decide)
+    |> map(describeDecision)
+    |> toArray
+}
