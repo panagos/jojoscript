@@ -48,3 +48,8 @@ export {
 } from './check.js'
 
 export { describeSource } from './describe.js'
+
+export {
+  simulatePipelines,
+  renderSimulationText
+} from './simulate.js'
