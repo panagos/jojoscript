@@ -53,3 +53,8 @@ export {
   simulatePipelines,
   renderSimulationText
 } from './simulate.js'
+
+export {
+  whyPipelines,
+  renderWhyText
+} from './why.js'
