@@ -35,7 +35,7 @@ export { defineType } from './tagged-unions.js'
 export { inspect, formatInspectReport } from './inspect.js'
 export { retry } from './retry.js'
 export { traceNode } from './trace.js'
-export { PipelineError, NonRetryableError } from './errors.js'
+export { PipelineError, NonRetryableError, ContractError } from './errors.js'
 export { Metrics, throughputOf } from './metrics.js'
 export {
   CheckpointStore,

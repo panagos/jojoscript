@@ -27,3 +27,17 @@ export class PipelineError extends Error {
     this.timestamp = details.timestamp ?? new Date().toISOString()
   }
 }
+
+/*
+ * A broken `requires`/`ensures` clause is a programming error, so retrying
+ * the same call can never succeed.
+ */
+export class ContractError extends NonRetryableError {
+  constructor(functionName, kind, condition) {
+    super(`Contract violated: ${functionName} ${kind} ${condition}`)
+    this.name = 'ContractError'
+    this.functionName = functionName
+    this.kind = kind
+    this.condition = condition
+  }
+}

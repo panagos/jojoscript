@@ -21,6 +21,7 @@ import {
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
 import { transformPurityModifiers } from './purity.js'
+import { transformContracts, findContracts } from './contracts.js'
 import { transformTypeDeclarations, findTypeDeclarations } from './type-declarations.js'
 import {
   transformEffectDeclarations,
@@ -50,6 +51,9 @@ export function compile(source, options = {}) {
    * anything else touches `fn` declarations.
    */
   result = transformPurityModifiers(result)
+
+  const usesContracts = findContracts(result).length > 0
+  result = transformContracts(result)
   result = transformTypeAnnotations(result)
 
   const usesTypeDeclarations = findTypeDeclarations(result).length > 0
@@ -103,6 +107,9 @@ export function compile(source, options = {}) {
   }
   if (usesHandleBlocks && !pipelineStdlibFunctions.includes('withHandlers')) {
     pipelineStdlibFunctions.push('withHandlers')
+  }
+  if (usesContracts && !pipelineStdlibFunctions.includes('ContractError')) {
+    pipelineStdlibFunctions.push('ContractError')
   }
   if (usesTypeDeclarations && !pipelineStdlibFunctions.includes('defineType')) {
     pipelineStdlibFunctions.push('defineType')
