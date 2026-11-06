@@ -33,6 +33,7 @@ npm test          # builds, then runs every test/*.test.js against dist/
 | `application/check-example.jojo` | `jojo check` | Module verified statically; its test checks a broken edit |
 | `application/describe-example.jojo` | `jojo describe` | Types, effects, contracts, purity, and a named pipeline in one description |
 | `application/simulate-example.jojo` | `jojo simulate` | Effect calls and risks estimated for 250,000 products |
+| `application/why-example.jojo` | `jojo why` | Plain-language reasons for determinism, ordering, and replay safety |
 | `application/purity-example.jojo` | `pure fn` / `effectful fn` | Compiler-checked separation of pure normalizing and effectful saving |
 | `application/tagged-unions-example.jojo` | Tagged unions | `type` variants with constructor patterns in `match` |
 | `application/typed-functions.jojo` | Optional type annotations | Compiled to JSDoc, never checked at compile time |

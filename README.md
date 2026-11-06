@@ -30,6 +30,7 @@ jojo generate <plan.json>
 jojo check <file.jojo|plan.json> [--format text|json] [--machine]
 jojo describe <file.jojo> [--pipeline <name>]
 jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
+jojo why <file.jojo> [--format text|json] [--pipeline <name>]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -48,6 +49,7 @@ jojo --help
 - `jojo check app.jojo` (or `plan.json`) reports structured diagnostics with codes, lines, and suggestions, and exits 1 on errors; `--machine` prints JSON. See [Checking programs](#checking-programs).
 - `jojo describe app.jojo` prints one JSON document describing the pipelines, effects, functions, and types in a file. See [Describing programs](#describing-programs).
 - `jojo simulate app.jojo --input 1000000` estimates item counts, effect calls, and risks for a given input size without running anything. See [Simulating pipelines](#simulating-pipelines).
+- `jojo why app.jojo` answers questions such as "why is this pipeline not deterministic?" in plain language. See [Asking why](#asking-why).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -811,6 +813,45 @@ data, and `--pipeline <name>` selects one pipeline. `simulatePipelines(source,
 { input })` and `renderSimulationText(simulation)` are exported from
 `@panagos/jojoscript`. See
 [example/src/application/simulate-example.jojo](example/src/application/simulate-example.jojo).
+
+## Asking why
+
+`jojo why` turns the static analysis into plain-language answers, numbered
+like `jojo explain` (the source is stage 1):
+
+```
+$ jojo why onboarding.jojo --pipeline verifiedCustomers
+WHY verifiedCustomers
+
+Why is this pipeline not deterministic?
+→ Stage 3 (mapAsync) uses effect verifyEmail; stage 5 (mapAsync) uses effectful function sendWelcome.
+
+Why is this pipeline lazy?
+→ Every stage passes items on one at a time, so no stage waits for the complete input.
+
+Why is this pipeline resumable?
+→ Checkpoint "verified" (stage 4) saves its items once they all complete; a rerun restores them instead of repeating stages 2-3.
+
+Why can't stage 3 be moved before stage 2?
+→ Stage 3 (mapAsync) uses effect verifyEmail and stage 2 (filter) decides which items reach it: moving it earlier would also run it for items that stage 2 drops.
+
+Why does checkpoint "verified" not guarantee replay safety?
+→ Effect verifyEmail runs before it (stage 3): if a run fails before "verified" completes, it runs again on retry (at-least-once, not exactly-once).
+
+Why can stage 5 repeat after a failure?
+→ Stage 5 (mapAsync) uses effectful function sendWelcome after the last checkpoint "verified": a rerun restores the checkpoint and runs it again for every restored item.
+```
+
+Every pipeline gets answers about determinism, laziness, and resumability.
+Additional questions appear when they apply: an effectful stage behind a
+filtering stage (`filter`, `filterAsync`, `unique`, `distinctBy`, `take`,
+`skip`) cannot be moved before it, a `parallel` stage explains what it
+parallelizes, and checkpoints explain which effects can run again on retry.
+Answers only reflect declared effects and `effectful fn`s. `--format json`
+prints `[{ name, answers: [{ question, answer }] }]`, and
+`whyPipelines(source)` / `renderWhyText(why)` are exported from
+`@panagos/jojoscript`. See
+[example/src/application/why-example.jojo](example/src/application/why-example.jojo).
 
 ## Effect Handlers
 

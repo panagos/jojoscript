@@ -59,6 +59,10 @@
   checkpoints, and reports large effect volumes, effects before checkpoints,
   effectful pipelines without checkpoints, and large in-memory sorts.
   Exported `simulatePipelines` and `renderSimulationText`.
+- Added `jojo why <file.jojo> [--format text|json] [--pipeline <name>]`, plain-
+  language answers about determinism, laziness, resumability, stage
+  reordering, parallelism, and checkpoint replay safety. Exported
+  `whyPipelines` and `renderWhyText`.
 
 ### Examples and tests
 
@@ -77,6 +81,8 @@
   output.
 - Added a price-sync example whose test runs it on a few products and
   simulates it for 250,000.
+- Added a customer-onboarding example whose test checks its `jojo why`
+  answers.
 - Raised unit test coverage above 85% (lines, branches, and functions) for
   every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
