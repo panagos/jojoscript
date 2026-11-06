@@ -1,0 +1,19 @@
+/*
+ * A named pipeline is a reusable, inspectable artifact: it compiles to a
+ * function taking its source, and tools can select it by name, e.g.
+ * `jojo explain named-pipeline-example.jojo --pipeline enrichOrders`.
+ */
+
+fn addVat(order) {
+  return { ...order, amountWithVat: order.amount * 1.2 }
+}
+
+export pipeline enrichOrders {
+  source orders
+
+  |> filter(order => order.active)
+  |> map(addVat)
+  |> checkpoint("enriched")
+  |> toArrayAsync
+  |> await
+}
