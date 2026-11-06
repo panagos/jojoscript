@@ -7,6 +7,7 @@ import { spawn, spawnSync } from 'node:child_process'
 
 import { compile, compileFile, compileDirectory, findJojoFiles } from '../src/compiler.js'
 import { formatSource } from '../src/formatter.js'
+import { parseSource } from '../src/parse.js'
 import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeline-ir.js'
 import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
 import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
@@ -39,6 +40,7 @@ Usage:
   jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
   jojo why <file.jojo> [--format text|json] [--pipeline <name>]
   jojo format <file.jojo|directory> [--check]
+  jojo parse <file.jojo> [--json]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -62,6 +64,7 @@ Examples:
   jojo simulate orders.jojo --input 1000000
   jojo why orders.jojo --pipeline enrichOrders
   jojo format src --check
+  jojo parse program.jojo --json
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -265,6 +268,11 @@ function simulate(input, { format, pipeline, records }) {
   }
 
   console.log(simulations.length ? simulations.map(renderSimulationText).join('\n\n') : 'No pipelines found.')
+}
+
+function parse(input) {
+  const resolvedInput = requireSingleFile('parse', input)
+  console.log(JSON.stringify(parseSource(fs.readFileSync(resolvedInput, 'utf8')), null, 2))
 }
 
 function formatFiles(input, checkOnly) {
@@ -503,7 +511,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'why', 'format', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'why', 'format', 'parse', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -540,6 +548,12 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'parse') {
+    parseFormatFlags(args.filter(arg => arg !== '--json'), 2, ['json'])
+    parse(input)
     return
   }
 
