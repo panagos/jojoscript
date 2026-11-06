@@ -141,6 +141,37 @@ async fn loadUsers() {
 }
 ```
 
+### Pure and effectful functions
+
+`pure` and `effectful` declare a function's role. They compile away to an
+ordinary function, and may follow `export` or surround `async`:
+
+```jojo
+effect storeUser(user)
+
+export pure fn normalizeUser(user) {
+  return { ...user, email: user.email.trim().toLowerCase() }
+}
+
+effectful fn saveUser(user) {
+  return storeUser(user)
+}
+```
+
+The compiler rejects a `pure fn` that uses a declared `effect` or an
+`effectful fn`, whether it calls it or passes it along (`map(saveUser)`):
+
+```
+pure fn "normalizeUser" uses effectful function "saveUser" (line 9)
+```
+
+The check is static and name-based. Strings, comments, property access
+(`user.saveUser`), and recursion are ignored, and calls to unannotated
+functions are allowed. `jojo explain` reports a stage that uses an
+`effectful fn` as `effectful` and the pipeline as non-deterministic, exactly as
+it does for declared effects. See
+[example/src/application/purity-example.jojo](example/src/application/purity-example.jojo).
+
 ### Optional type annotations
 
 Parameters and return values can be annotated. Annotations are **never
@@ -463,7 +494,8 @@ from `@panagos/jojoscript` for programmatic use.
   materialization boundary), `parallel` (has a `parallel` stage), `resumable`
   (has a `checkpoint` stage), `deterministic` (references no declared effect).
 
-Purity and determinism only reflect references to declared `effect`s: a stage
+Purity and determinism only reflect references to declared `effect`s and
+`effectful fn`s (see [Pure and effectful functions](#pure-and-effectful-functions)): a stage
 calling ordinary JavaScript such as `Math.random()` or `fetch()` directly is
 still reported as `pure`. Route external work through effects to make it
 visible. See

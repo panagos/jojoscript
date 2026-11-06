@@ -11,6 +11,9 @@
 - Added tagged unions: `type Name = | Variant(fields) | ...` declares frozen,
   JSON-friendly variant constructors (`defineType` runtime helper), and
   constructor patterns such as `Ok(value)` match them in `match`.
+- Added `pure fn` and `effectful fn` declarations. The compiler rejects a pure
+  function that uses a declared effect or an effectful function, and
+  `jojo explain` treats stages using effectful functions as effectful.
 
 ### Tooling
 
@@ -31,6 +34,7 @@
   its `explainPipelines` and `jojo explain` output.
 - Added an API-response example for structured `match` patterns.
 - Added a payment-outcome example for tagged unions.
+- Added a user-import example for pure and effectful functions.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
   it with `jojo generate`, and runs the regenerated program.
 
