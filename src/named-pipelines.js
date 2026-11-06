@@ -45,7 +45,8 @@ export function findNamedPipelines(source) {
       inputs: /^[A-Za-z_$][\w$]*$/.test(expression) ? [expression] : [],
       expression,
       exported: Boolean(exportPart),
-      async: /\bawait\b/.test(code.slice(bodyOpen, bodyClose)),
+      // Only a top-level `|> await` or an awaited source needs an async function; awaits inside stage callbacks do not.
+      async: /\bawait\b/.test(expression) || stageLines.some(line => /^\s*\|>\s*await\b/.test(line)),
       line: lineAt(source, match.index + indent.length),
       indent,
       sourceIndent: sourceLine[1],

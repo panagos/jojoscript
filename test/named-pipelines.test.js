@@ -72,3 +72,14 @@ test('ordinary uses of the word pipeline are left untouched', () => {
   const source = 'const pipeline = { stages: [] }\npipeline.stages.push(1)\n'
   assert.equal(transformNamedPipelines(source), source)
 })
+
+test('an await inside a stage function does not make the pipeline itself async', async () => {
+  const { priced } = await evaluate(`
+export pipeline priced {
+  source products
+  |> map(async product => ({ ...product, price: await Promise.resolve(10) }))
+}
+`)
+  const [item] = [...priced([{ sku: 'a' }])]
+  assert.deepEqual(await item, { sku: 'a', price: 10 })
+})
