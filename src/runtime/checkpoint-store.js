@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { toJson, fromJson } from './serialization.js'
+
 /*
  * Storage interface for checkpoints. Deliberately storage-agnostic: the
  * `checkpoint()` runtime operator only ever talks to this interface, never
@@ -102,7 +104,7 @@ export class FileCheckpointStore extends CheckpointStore {
     fs.mkdirSync(path.dirname(file), { recursive: true })
 
     const tmp = `${file}.tmp-${process.pid}-${Date.now()}`
-    fs.writeFileSync(tmp, JSON.stringify(checkpoint), 'utf8')
+    fs.writeFileSync(tmp, toJson(checkpoint), 'utf8')
     fs.renameSync(tmp, file)
   }
 
@@ -112,7 +114,7 @@ export class FileCheckpointStore extends CheckpointStore {
 
     let checkpoint
     try {
-      checkpoint = JSON.parse(fs.readFileSync(file, 'utf8'))
+      checkpoint = fromJson(fs.readFileSync(file, 'utf8'))
     } catch (error) {
       throw new Error(`Corrupted checkpoint "${checkpointId}": ${error.message}`)
     }
