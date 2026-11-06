@@ -122,11 +122,18 @@ function watch(input, out) {
 
   rebuild()
 
-  fs.watch(resolvedInput, { recursive: true }, (_, filename) => {
+  const watcher = fs.watch(resolvedInput, { recursive: true }, (_, filename) => {
     if (filename && !filename.endsWith('.jojo')) return
     console.log(`\nChange detected${filename ? `: ${filename}` : ''}, rebuilding...`)
     rebuild()
   })
+
+  const stop = () => {
+    watcher.close()
+    process.exit(0)
+  }
+  process.once('SIGINT', stop)
+  process.once('SIGTERM', stop)
 }
 
 function run(input, out) {
