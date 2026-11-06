@@ -46,3 +46,5 @@ export {
   checkSource,
   checkPlan
 } from './check.js'
+
+export { describeSource } from './describe.js'
