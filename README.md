@@ -23,9 +23,9 @@ npm install @panagos/jojoscript
 ```bash
 jojo build <file.jojo|directory> [--out <directory>] [--watch]
 jojo run <file.jojo> [--out <directory>]
-jojo graph <file.jojo> [--format text|dot]
-jojo explain <file.jojo> [--format text|json]
-jojo plan <file.jojo> [--format json]
+jojo graph <file.jojo> [--format text|dot] [--pipeline <name>]
+jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
+jojo plan <file.jojo> [--format json] [--pipeline <name>]
 jojo generate <plan.json>
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
@@ -41,6 +41,7 @@ jojo --help
 - `jojo graph app.jojo` prints a static pipeline graph; use `--format dot` for Graphviz output.
 - `jojo explain app.jojo` describes what each pipeline means (stages, effects, properties) without running it; use `--format json` for tools and LLMs. See [Explaining pipelines](#explaining-pipelines).
 - `jojo plan app.jojo` prints a canonical JSON execution plan, and `jojo generate plan.json` turns a plan back into validated JojoScript. See [Machine-readable execution plans](#machine-readable-execution-plans).
+- `graph`, `explain`, and `plan` accept `--pipeline <name>` to select one pipeline by its (inferred or [declared](#named-pipelines)) name.
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -357,6 +358,31 @@ A stage can have no arguments (`users |> unique`) or arguments
 (`users |> take(10)`), and normal JavaScript expressions can be pipeline
 inputs, including `await` expressions and pipelines inside `return`
 statements, function bodies, and object literals.
+
+#### Named pipelines
+
+A `pipeline` block declares a named, reusable pipeline. Its first line names
+the source, and the remaining lines are stages:
+
+```jojo
+export pipeline enrichOrders {
+  source orders
+
+  |> filter(order => order.active)
+  |> map(addVat)
+  |> checkpoint("enriched")
+  |> toArrayAsync
+  |> await
+}
+```
+
+It compiles to a function. An identifier source becomes its single parameter
+(`enrichOrders(orders)`); any other source expression gives a function with
+no parameters. A pipeline containing `await` becomes an `async` function, and
+blank lines inside the block are allowed. Tools see the pipeline under its
+declared name, so `jojo explain app.jojo --pipeline enrichOrders` (and the same
+option on `graph` and `plan`) selects it directly. See
+[example/src/application/named-pipeline-example.jojo](example/src/application/named-pipeline-example.jojo).
 
 #### Stage IDs
 

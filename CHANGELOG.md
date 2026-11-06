@@ -19,6 +19,8 @@
   changing the pipeline hash.
 - Added function contracts: `requires` and `ensures` clauses on block
   functions throw a non-retryable `ContractError` when broken.
+- Added named pipeline declarations (`pipeline name { source input |> ... }`),
+  compiled to functions that take their source as input.
 
 ### Tooling
 
@@ -32,6 +34,9 @@
   validates a plan and turns it back into JojoScript.
 - Exported `planPipelines` and `planToJojo` from the compiler entry point.
 - `--format` options now also accept the `--format=value` form.
+- `jojo graph`, `jojo explain`, and `jojo plan` accept `--pipeline <name>` to
+  select a single pipeline.
+- `jojo build --watch` exits cleanly on Ctrl+C or SIGTERM.
 
 ### Examples and tests
 
@@ -42,6 +47,9 @@
 - Added a user-import example for pure and effectful functions.
 - Added a discount-pricing example for function contracts.
 - Added a shipment example for stage IDs.
+- Added an order-enrichment example for named pipelines.
+- Raised unit test coverage above 85% (lines, branches, and functions) for
+  every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
   it with `jojo generate`, and runs the regenerated program.
 
