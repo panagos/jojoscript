@@ -252,3 +252,9 @@ test('format rejects unknown options and missing paths', () => {
     assertFails(['format', path.join(dir, 'missing.jojo')], /Not found: /)
   })
 })
+
+test('--seed requires --deterministic', () => {
+  withProject((dir, file) => {
+    assertFails(['run', file, '--seed', '3'], /--seed requires --deterministic/)
+  })
+})

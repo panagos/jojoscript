@@ -566,3 +566,38 @@ test('parse prints the syntax nodes as JSON and reports invalid syntax as one li
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('run --deterministic makes random numbers, time, and effects reproducible', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, [
+    'import { random, now } from "@panagos/jojoscript/runtime"',
+    '',
+    'console.log(JSON.stringify([random(), random(), now()]))',
+    ''
+  ].join('\n'))
+
+  const first = runCli(['run', file, '--deterministic', '--seed', '7'])
+  const second = runCli(['run', file, '--deterministic', '--seed=7'])
+  const otherSeed = runCli(['run', file, '--deterministic', '--seed', '8'])
+
+  assert.equal(first.code, 0)
+  const [a, b, time] = JSON.parse(first.stdout.split('\n').at(-2))
+  assert.equal(first.stdout, second.stdout)
+  assert.notEqual(first.stdout, otherSeed.stdout)
+  assert.ok(a !== b && time === 0)
+
+  fs.writeFileSync(file, 'effect save(x)\n\nhandle { save: x => x } {\n  await save(1)\n}\n')
+  const strict = runCli(['run', file, '--deterministic'])
+  assert.notEqual(strict.code, 0)
+  assert.match(strict.stderr, /Effect "save" has no deterministic handler/)
+
+  assertSeedValidation(file)
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+function assertSeedValidation(file) {
+  const invalid = runCli(['run', file, '--deterministic', '--seed', 'abc'])
+  assert.equal(invalid.code, 1)
+  assert.match(invalid.stderr, /--seed must be a non-negative integer/)
+}
