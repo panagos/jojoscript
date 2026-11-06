@@ -423,3 +423,42 @@ test('graph, explain, and plan can select a single named pipeline with --pipelin
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('check prints diagnostics as text or JSON and exits 1 when the program is invalid', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, 'fn divide(a, b)\n  requires b != 0\n{\n  return a / b\n}\n\nbad := divide(1, 0)\n')
+
+  const text = runCli(['check', file])
+  assert.equal(text.code, 1)
+  assert.match(text.stdout, /^ERROR E301\nline 7\nCall divide\(1, 0\) violates "requires b != 0"\n/)
+
+  const machine = runCli(['check', file, '--machine'])
+  assert.equal(machine.code, 1)
+  assert.equal(JSON.parse(machine.stdout).errors[0].code, 'E301')
+  assert.equal(runCli(['check', file, '--format', 'json']).stdout, machine.stdout)
+
+  fs.writeFileSync(file, 'ok := 1\n')
+  const valid = runCli(['check', file])
+  assert.equal(valid.code, 0)
+  assert.equal(valid.stdout, 'valid: no problems found\n')
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('check validates JSON plans', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'plan.json')
+  fs.writeFileSync(file, JSON.stringify({ version: 2, pipelines: [] }))
+
+  const { stdout, code } = runCli(['check', file, '--machine'])
+  assert.equal(code, 1)
+  assert.equal(JSON.parse(stdout).errors[0].message, 'Invalid plan: version must be 1')
+
+  fs.writeFileSync(file, '{ broken')
+  const broken = runCli(['check', file])
+  assert.equal(broken.code, 1)
+  assert.match(broken.stderr, /jojo: Invalid plan JSON: /)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
