@@ -20,6 +20,7 @@ import {
 
 import { transformMatchExpressions } from './match-parser.js'
 import { transformTypeAnnotations } from './type-annotations.js'
+import { transformPurityModifiers } from './purity.js'
 import { transformTypeDeclarations, findTypeDeclarations } from './type-declarations.js'
 import {
   transformEffectDeclarations,
@@ -48,6 +49,7 @@ export function compile(source, options = {}) {
    * Optional type annotations, stripped and re-expressed as JSDoc before
    * anything else touches `fn` declarations.
    */
+  result = transformPurityModifiers(result)
   result = transformTypeAnnotations(result)
 
   const usesTypeDeclarations = findTypeDeclarations(result).length > 0

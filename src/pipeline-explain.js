@@ -1,6 +1,7 @@
 import { maskNonCode } from './lexer.js'
 import { findAllPipelines } from './pipeline-parser.js'
-import { analyzePipelines } from './pipeline-ir.js'
+import { analyzePipelines, namesReferencedByStage } from './pipeline-ir.js'
+import { findPurityDeclarations } from './purity.js'
 
 const CONTROL_STAGES = new Set(['await', 'catch', 'orElse', 'pass'])
 const MATERIALIZING_STAGES = new Set(['sort', 'sortBy', 'groupBy', 'partition'])
@@ -17,11 +18,14 @@ const FUNCTION_NAME = /\b(?:fn|function)\s+([A-Za-z_$][\w$]*)\s*\(/g
  */
 export function explainPipelines(source) {
   const pipelines = findAllPipelines(source)
+  const effectfulFunctionNames = findPurityDeclarations(source)
+    .filter(declaration => declaration.purity === 'effectful')
+    .map(declaration => declaration.name)
 
   return analyzePipelines(source).map((graph, index) => {
     const stages = graph.nodes
       .filter(node => node.type !== 'result')
-      .map((node, position) => describeStage(node, position + 1))
+      .map((node, position) => describeStage(node, position + 1, effectfulFunctionNames))
 
     return {
       name: inferPipelineName(source, pipelines[index]) ?? `pipeline-${index + 1}`,
@@ -32,15 +36,26 @@ export function explainPipelines(source) {
         lazy: !stages.some(stage => MATERIALIZING_STAGES.has(stage.type)),
         parallel: stages.some(stage => stage.type === 'parallel'),
         resumable: stages.some(stage => stage.type === 'checkpoint'),
-        deterministic: graph.effects.length === 0
+        deterministic: stages.every(stage => !stage.effects.length && !stage.effectfulFunctions.length)
       }
     }
   })
 }
 
-function describeStage(node, index) {
+function describeStage(node, index, effectfulFunctionNames) {
   const effects = node.metadata.effects ?? []
-  return { index, type: node.type, detail: stageDetail(node, effects), args: node.args, effects }
+  const effectfulFunctions = node.type === 'source'
+    ? []
+    : namesReferencedByStage({ name: node.type, args: node.args }, effectfulFunctionNames)
+
+  return {
+    index,
+    type: node.type,
+    detail: stageDetail(node, [...effects, ...effectfulFunctions]),
+    args: node.args,
+    effects,
+    effectfulFunctions
+  }
 }
 
 function stageDetail(node, effects) {

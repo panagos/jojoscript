@@ -10,7 +10,7 @@ import { findEffectDeclarations, findHandleBlocks } from './effect-parser.js'
  * whether the reference is actually reachable/called, only that the name
  * appears with word boundaries.
  */
-function effectsUsedByStage(stage, effectNames) {
+export function namesReferencedByStage(stage, effectNames) {
   if (!effectNames.length) return []
   const haystack = stage.args.length ? `${stage.name} ${stage.args.join(' ')}` : stage.name
   return effectNames.filter(name => new RegExp(`\\b${name}\\b`).test(haystack))
@@ -44,7 +44,7 @@ export function buildGraph(pipeline, pipelineId = computePipelineId(pipeline), o
   })
 
   pipeline.stages.forEach((stage, index) => {
-    const effects = effectsUsedByStage(stage, effectNames)
+    const effects = namesReferencedByStage(stage, effectNames)
 
     nodes.push({
       id: `node-${index + 1}`,
