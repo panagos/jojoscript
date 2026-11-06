@@ -41,3 +41,8 @@ export {
   findEffectDeclarations,
   findHandleBlocks
 } from './effect-parser.js'
+
+export {
+  checkSource,
+  checkPlan
+} from './check.js'

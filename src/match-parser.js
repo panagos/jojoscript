@@ -309,9 +309,41 @@ function parseArms(source, tokens) {
       pattern,
       expression,
       structural: isStructuralPattern(patternTokens),
+      variant: isConstructorPattern(patternTokens)
+        ? {
+            name: patternTokens[0].value,
+            arity: splitTopLevelCommas(patternTokens.slice(2, -1)).filter(argument => argument.length).length,
+            line: lineAt(source, patternTokens[0].start)
+          }
+        : null,
       compiled: compilePattern(source, patternTokens, '__match', false)
     }
   })
+}
+
+function lineAt(source, offset) {
+  return source.slice(0, offset).split('\n').length
+}
+
+// Static view of every match expression, used by `jojo check` for exhaustiveness.
+export function findMatchExpressions(source) {
+  const tokens = significantTokens(tokenize(source))
+  const matches = []
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (!isMatchKeyword(tokens, i)) continue
+    const block = findMatchBlock(source, tokens, i)
+    if (!block) continue
+
+    const arms = parseArms(source, tokens.slice(block.braceOpen + 1, block.braceClose))
+    matches.push({
+      line: lineAt(source, tokens[i].start),
+      hasDefault: arms.some(arm => arm.pattern === '_'),
+      arms: arms.map(({ pattern, variant }) => ({ pattern, variant }))
+    })
+  }
+
+  return matches
 }
 
 function emitArm({ pattern, expression, compiled: { conditions, bindings } }) {
