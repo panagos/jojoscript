@@ -128,3 +128,11 @@ test('functions without clauses and other uses of requires are left untouched', 
 test('ContractError is exported from the runtime', () => {
   assert.equal(ExportedContractError, ContractError)
 })
+
+test('contracts are found and enforced on pure and effectful functions', async () => {
+  const source = 'export effectful fn persist(order)\n  requires order.id != null\n{\n  return order\n}\n'
+
+  assert.deepEqual(findContracts(source).map(contract => contract.name), ['persist'])
+  const { persist } = await evaluate(source)
+  assert.throws(() => persist({}), /persist requires order.id != null/)
+})

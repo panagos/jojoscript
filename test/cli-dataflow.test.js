@@ -462,3 +462,18 @@ test('check validates JSON plans', () => {
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('describe prints the self-describing JSON document, optionally for one pipeline', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, 'a := xs |> count\n\nb := ys |> first\n')
+
+  const all = JSON.parse(runCli(['describe', file]).stdout)
+  assert.equal(all.language, 'jojo')
+  assert.deepEqual(all.pipelines.map(pipeline => pipeline.name), ['a', 'b'])
+
+  const one = JSON.parse(runCli(['describe', file, '--pipeline', 'b']).stdout)
+  assert.deepEqual(one.pipelines.map(pipeline => pipeline.name), ['b'])
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
