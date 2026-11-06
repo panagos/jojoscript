@@ -25,6 +25,7 @@ import { getCurrentContext } from './execution-context.js'
 const handlerStorage = new AsyncLocalStorage()
 const invocationStorage = new AsyncLocalStorage()
 const authorizationStorage = new AsyncLocalStorage()
+const deterministicStorage = new AsyncLocalStorage()
 
 /*
  * name -> { name, params, sideEffecting, replayable, builtin? }.
@@ -66,6 +67,15 @@ export class EffectAuthorizationError extends Error {
     this.name = 'EffectAuthorizationError'
     this.effectName = name
     this.reason = reason
+    this.retryable = false
+  }
+}
+
+export class NondeterministicEffectError extends Error {
+  constructor(name) {
+    super(`Effect "${name}" has no deterministic handler; inside deterministic mode use { handle, deterministic: true } or replayHandlers`)
+    this.name = 'NondeterministicEffectError'
+    this.effectName = name
     this.retryable = false
   }
 }
@@ -221,9 +231,13 @@ export async function performEffect(name, args) {
     throw new UnhandledEffectError(name)
   }
 
+  const entry = frame.handlers[name]
+  if (deterministicStorage.getStore() && entry.deterministic !== true) {
+    throw new NondeterministicEffectError(name)
+  }
+
   await authorizeEffect(name, args)
 
-  const entry = frame.handlers[name]
   const nextInFlight = new Set(inFlight)
   nextInFlight.add(name)
 
@@ -280,9 +294,65 @@ effectRegistry.set('PARALLEL', {
   builtin: true
 })
 
+for (const [name, params] of [['TIME', []], ['RANDOM', []]]) {
+  effectRegistry.set(name, { name, params, sideEffecting: false, replayable: false, builtin: true })
+}
+
+function builtinHandler(name) {
+  const frame = currentFrames().find(f => name in f.handlers)
+  return frame ? frame.handlers[name].handle : null
+}
+
 export function getParallelHandler() {
-  const frame = currentFrames().find(f => 'PARALLEL' in f.handlers)
-  return frame ? frame.handlers.PARALLEL.handle : null
+  return builtinHandler('PARALLEL')
+}
+
+/*
+ * `now()` and `random()` are built-in capabilities like `PARALLEL`: they are
+ * synchronous, fall back to `Date.now()` / `Math.random()`, and can be
+ * replaced with `handle { TIME: ..., RANDOM: ... }` or `deterministic()`.
+ */
+export function now() {
+  const handler = builtinHandler('TIME')
+  return handler ? handler() : Date.now()
+}
+
+export function random() {
+  const handler = builtinHandler('RANDOM')
+  return handler ? handler() : Math.random()
+}
+
+// mulberry32: a small, well-distributed seeded generator.
+function seededRandom(seed) {
+  let state = seed >>> 0
+  return () => {
+    state = (state + 0x6D2B79F5) >>> 0
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+async function* runSequentially({ items, fn }) {
+  for await (const item of items) yield await fn(item)
+}
+
+/*
+ * Runs `fn` so that the same inputs always produce the same outputs: a seeded
+ * `random()`, a clock that starts at `startTime` and advances 1ms per read,
+ * sequential `parallel()`, and only effects whose handler is declared
+ * deterministic (including replay handlers).
+ */
+export function deterministic(fn, options = {}) {
+  let clock = options.startTime ?? 0
+  const handlers = {
+    TIME: { handle: () => clock++, deterministic: true },
+    RANDOM: { handle: seededRandom(options.seed ?? 1), deterministic: true },
+    PARALLEL: { handle: runSequentially, deterministic: true }
+  }
+
+  return deterministicStorage.run(true, () => withHandlers(handlers, fn))
 }
 
 /*

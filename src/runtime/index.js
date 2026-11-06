@@ -64,7 +64,11 @@ export {
   UnhandledEffectError,
   EffectHandlerError,
   RecursiveEffectError,
-  EffectAuthorizationError
+  EffectAuthorizationError,
+  NondeterministicEffectError,
+  deterministic,
+  now,
+  random
 } from './effects.js'
 export {
   EffectLog,

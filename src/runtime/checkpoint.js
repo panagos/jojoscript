@@ -1,4 +1,5 @@
 import { getCurrentContext, getDefaultContext } from './execution-context.js'
+import { now } from './effects.js'
 
 /*
  * A pipeline checkpoint. `items` flow through unchanged; the operator's job
@@ -64,6 +65,6 @@ export async function* checkpoint(items, name, meta = {}) {
     checkpointId: name,
     items: buffer,
     itemCount: buffer.length,
-    createdAt: new Date().toISOString()
+    createdAt: new Date(now()).toISOString()
   })
 }
