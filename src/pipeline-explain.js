@@ -24,7 +24,7 @@ export function explainPipelines(source) {
       .map((node, position) => describeStage(node, position + 1))
 
     return {
-      name: inferName(source, pipelines[index]) ?? `pipeline-${index + 1}`,
+      name: inferPipelineName(source, pipelines[index]) ?? `pipeline-${index + 1}`,
       id: graph.id,
       stages,
       effects: uniqueEffects(graph.effects),
@@ -60,7 +60,7 @@ function uniqueEffects(effects) {
   return [...byName.values()]
 }
 
-function inferName(source, pipeline) {
+export function inferPipelineName(source, pipeline) {
   const lead = (source.slice(0, pipeline.start) + pipeline.prefix).trimEnd()
 
   const expressionFunction = lead.match(EXPRESSION_FUNCTION_NAME)
