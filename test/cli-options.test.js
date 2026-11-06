@@ -245,3 +245,10 @@ test('simulate reports files without pipelines', () => {
     assert.equal(stdout, 'No pipelines found.\n')
   })
 })
+
+test('format rejects unknown options and missing paths', () => {
+  withProject((dir, file) => {
+    assertFails(['format', file, '--write'], /Unknown option: --write/)
+    assertFails(['format', path.join(dir, 'missing.jojo')], /Not found: /)
+  })
+})

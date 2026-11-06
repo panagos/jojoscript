@@ -523,3 +523,29 @@ test('why prints plain-language answers as text or JSON', () => {
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('format rewrites unformatted files in place and --check reports them without writing', () => {
+  const dir = tempProject()
+  fs.mkdirSync(path.join(dir, 'nested'))
+  fs.mkdirSync(path.join(dir, 'node_modules'))
+  fs.writeFileSync(path.join(dir, 'a.jojo'), 'fn f() {\nreturn 1\n}\n')
+  fs.writeFileSync(path.join(dir, 'nested', 'b.jojo'), 'ok := 1\n')
+  fs.writeFileSync(path.join(dir, 'node_modules', 'c.jojo'), 'fn g() {\nreturn 1\n}\n')
+
+  const check = runCli(['format', dir, '--check'])
+  assert.equal(check.code, 1)
+  assert.equal(check.stdout, `Needs formatting: ${path.join(dir, 'a.jojo')}\n`)
+  assert.equal(fs.readFileSync(path.join(dir, 'a.jojo'), 'utf8'), 'fn f() {\nreturn 1\n}\n')
+
+  const write = runCli(['format', dir])
+  assert.equal(write.code, 0)
+  assert.equal(write.stdout, `Formatted ${path.join(dir, 'a.jojo')}\n`)
+  assert.equal(fs.readFileSync(path.join(dir, 'a.jojo'), 'utf8'), 'fn f() {\n  return 1\n}\n')
+  assert.equal(fs.readFileSync(path.join(dir, 'node_modules', 'c.jojo'), 'utf8'), 'fn g() {\nreturn 1\n}\n')
+
+  const clean = runCli(['format', path.join(dir, 'a.jojo'), '--check'])
+  assert.equal(clean.code, 0)
+  assert.equal(clean.stdout, 'All files are formatted.\n')
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
