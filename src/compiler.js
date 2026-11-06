@@ -145,7 +145,7 @@ export function compile(source, options = {}) {
    * pipeline stage), the auto-imported names are merged into it instead
    * of creating a second, colliding import declaration.
    */
-  if (pipelineStdlibFunctions.length) {
+  if (pipelineStdlibFunctions.length || options.runtimeImport) {
     result = mergeRuntimeImport(result, pipelineStdlibFunctions, runtimeImport)
   }
 
@@ -159,6 +159,7 @@ function mergeRuntimeImport(source, stdlibFunctions, runtimeImport) {
   const existing = source.match(pattern)
 
   if (!existing) {
+    if (!stdlibFunctions.length) return source
     return `import { ${stdlibFunctions.join(', ')} } from "${runtimeImport}"\n` + source
   }
 

@@ -70,3 +70,11 @@ test('compile merges pipeline imports into an existing runtime import instead of
   assert.equal(output.match(/import \{/g).length, 1)
   assert.match(output, /import \{ toArray, map \} from "@panagos\/jojoscript\/runtime"/)
 })
+
+test('an explicit runtimeImport option also rewrites runtime imports in files without pipelines', () => {
+  assert.equal(
+    compile('import { random } from "@panagos/jojoscript/runtime"\n', { runtimeImport: 'file:///runtime/index.js' }),
+    'import { random } from "file:///runtime/index.js"\n'
+  )
+  assert.equal(compile('import { random } from "jojoscript/runtime"\n'), 'import { random } from "jojoscript/runtime"\n')
+})
