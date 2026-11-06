@@ -1,0 +1,30 @@
+/*
+ * A tagged union lists every possible payment outcome, and `match` handles
+ * each variant with a constructor pattern.
+ */
+
+export type PaymentResult =
+  | Paid(amount)
+  | Declined(reason)
+  | Pending
+
+export fn settle(result) {
+  return match result {
+    Paid(amount) => `paid ${amount}`
+    Declined("insufficient funds") => "ask for another card"
+    Declined(reason) => `declined: ${reason}`
+    Pending() => "waiting for the bank"
+  }
+}
+
+fn charge(order) {
+  if (!order.confirmed) return Pending()
+  return order.total > order.limit ? Declined("insufficient funds") : Paid(order.total)
+}
+
+export fn chargeAll(orders) {
+  return orders
+    |> map(charge)
+    |> map(settle)
+    |> toArray
+}
