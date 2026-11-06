@@ -1,0 +1,18 @@
+/*
+ * Contracts state what a function expects (`requires`) and guarantees
+ * (`ensures`), so callers and LLMs can read the constraints directly.
+ */
+
+export fn applyDiscount(price, percent)
+  requires price >= 0
+  requires percent >= 0 && percent <= 100
+  ensures result >= 0 && result <= price
+{
+  return price - price * percent / 100
+}
+
+export fn priceOrders(orders) {
+  return orders
+    |> map(order => applyDiscount(order.price, order.discount))
+    |> toArray
+}
