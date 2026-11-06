@@ -1,0 +1,29 @@
+/*
+ * `pure` and `effectful` make each function's role explicit: the compiler
+ * rejects a pure function that uses an effect or an effectful function.
+ */
+
+effect storeUser(user)
+
+export pure fn normalizeUser(user) {
+  return { ...user, email: user.email.trim().toLowerCase() }
+}
+
+effectful fn saveUser(user) {
+  return storeUser(user)
+}
+
+export async fn importUsers(users, saved) {
+  return handle {
+    storeUser: user => {
+      saved.push(user)
+      return user
+    }
+  } {
+    return users
+      |> map(normalizeUser)
+      |> mapAsync(saveUser)
+      |> toArrayAsync
+      |> await
+  }
+}
