@@ -1,0 +1,25 @@
+/*
+ * A price sync that calls a pricing service per product.
+ * `jojo simulate simulate-example.jojo --input 250000 --pipeline pricedProducts`
+ * estimates its effect calls and risks before anything runs.
+ */
+
+effect fetchPrice(sku)
+
+pipeline pricedProducts {
+  source products
+  |> filter(product => product.active)
+  |> parallel(16)
+  |> map(async product => ({ ...product, price: await fetchPrice(product.sku) }))
+  |> checkpoint("priced")
+}
+
+export async fn syncPrices(products) {
+  return handle {
+    fetchPrice: sku => 10
+  } {
+    return pricedProducts(products)
+      |> toArrayAsync
+      |> await
+  }
+}
