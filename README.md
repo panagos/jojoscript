@@ -29,6 +29,7 @@ jojo plan <file.jojo> [--format json] [--pipeline <name>]
 jojo generate <plan.json>
 jojo check <file.jojo|plan.json> [--format text|json] [--machine]
 jojo describe <file.jojo> [--pipeline <name>]
+jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -46,6 +47,7 @@ jojo --help
 - `graph`, `explain`, and `plan` accept `--pipeline <name>` to select one pipeline by its (inferred or [declared](#named-pipelines)) name.
 - `jojo check app.jojo` (or `plan.json`) reports structured diagnostics with codes, lines, and suggestions, and exits 1 on errors; `--machine` prints JSON. See [Checking programs](#checking-programs).
 - `jojo describe app.jojo` prints one JSON document describing the pipelines, effects, functions, and types in a file. See [Describing programs](#describing-programs).
+- `jojo simulate app.jojo --input 1000000` estimates item counts, effect calls, and risks for a given input size without running anything. See [Simulating pipelines](#simulating-pipelines).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -382,7 +384,8 @@ export pipeline enrichOrders {
 
 It compiles to a function. An identifier source becomes its single parameter
 (`enrichOrders(orders)`); any other source expression gives a function with
-no parameters. A pipeline containing `await` becomes an `async` function, and
+no parameters. A pipeline with a `|> await` stage (or an awaited source) becomes an
+`async` function; an `await` inside a stage callback does not. Also,
 blank lines inside the block are allowed. Tools see the pipeline under its
 declared name, so `jojo explain app.jojo --pipeline enrichOrders` (and the same
 option on `graph` and `plan`) selects it directly. See
@@ -761,6 +764,52 @@ or an LLM can learn what a program contains without reading its source:
 `--pipeline <name>` limits `pipelines` to one pipeline. `describeSource(source)`
 is exported from `@panagos/jojoscript`. See
 [example/src/application/describe-example.jojo](example/src/application/describe-example.jojo).
+
+## Simulating pipelines
+
+`jojo simulate` answers "what would this pipeline do with N records?" before
+anything runs. No stage or effect is executed:
+
+```
+$ jojo simulate prices.jojo --input 250000 --pipeline pricedProducts
+SIMULATION pricedProducts
+
+INPUT
+  250,000 records
+
+OPERATIONS
+  1 filter     250,000 items in
+  2 parallel   ≤250,000 items in, 16 workers
+  3 map        ≤250,000 items in, ≤250,000 calls to fetchPrice
+  4 checkpoint ≤250,000 items in, saved as "priced"
+
+POTENTIAL PROBLEMS
+  ⚠ stage 3: up to 250,000 calls to effect "fetchPrice"
+  ⚠ stage 3: effect "fetchPrice" runs before checkpoint "priced": items processed before a failure are fetched again on retry (at-least-once)
+```
+
+Item counts flow through the stages as upper bounds (`≤` once a filtering
+stage such as `filter`, `unique`, or `distinctBy` has run). `take`, `skip`,
+`chunk`, `batch`, and `window` change them exactly; `flatMap` and `groupBy`
+make them unknown; `count`, `first`, `find`, `some`, `every`, and `reduce`
+produce one result. A stage that uses a declared effect or an `effectful fn`
+makes one call per item it receives.
+
+Potential problems reported:
+
+- 1,000 or more calls to one effect;
+- an effect that runs before a checkpoint, and so may run again for items
+  processed before a failure (see
+  [Effects and checkpoint/resume](#effects-and-checkpointresume));
+- a pipeline with effects but no checkpoint at all;
+- `sort`, `sortBy`, `groupBy`, or `partition` holding 10,000 or more items in
+  memory.
+
+The input defaults to 1,000 records. `--format json` prints the simulation as
+data, and `--pipeline <name>` selects one pipeline. `simulatePipelines(source,
+{ input })` and `renderSimulationText(simulation)` are exported from
+`@panagos/jojoscript`. See
+[example/src/application/simulate-example.jojo](example/src/application/simulate-example.jojo).
 
 ## Effect Handlers
 

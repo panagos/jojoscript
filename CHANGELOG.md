@@ -54,6 +54,11 @@
 - Added `jojo describe <file.jojo> [--pipeline <name>]`, a self-describing
   JSON document of a file's pipelines (inputs, effects, stages, properties),
   effects, annotated functions, and tagged unions. Exported `describeSource`.
+- Added `jojo simulate <file.jojo> [--input <records>]`, a static what-if
+  that estimates per-stage item counts, effect calls, parallel workers, and
+  checkpoints, and reports large effect volumes, effects before checkpoints,
+  effectful pipelines without checkpoints, and large in-memory sorts.
+  Exported `simulatePipelines` and `renderSimulationText`.
 
 ### Examples and tests
 
@@ -70,6 +75,8 @@
   and on a broken edit of it.
 - Added an invoice-ingestion example whose test checks its `jojo describe`
   output.
+- Added a price-sync example whose test runs it on a few products and
+  simulates it for 250,000.
 - Raised unit test coverage above 85% (lines, branches, and functions) for
   every source file and every example module loaded by tests.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
