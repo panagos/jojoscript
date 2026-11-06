@@ -23,10 +23,10 @@ test('simulate propagates item counts and counts effect calls without running an
   assert.equal(simulation.input, 1000000)
   assert.deepEqual(simulation.stages.map(({ index, id, type, items, exact, workers, effectCalls, checkpoint }) =>
     ({ index, id, type, items, exact, workers, effectCalls, checkpoint })), [
-    { index: 1, id: null, type: 'filter', items: 1000000, exact: true, workers: null, effectCalls: {}, checkpoint: null },
-    { index: 2, id: null, type: 'parallel', items: 1000000, exact: false, workers: 8, effectCalls: {}, checkpoint: null },
-    { index: 3, id: 'enrich', type: 'map', items: 1000000, exact: false, workers: null, effectCalls: { fetchCustomer: 1000000 }, checkpoint: null },
-    { index: 4, id: null, type: 'checkpoint', items: 1000000, exact: false, workers: null, effectCalls: {}, checkpoint: 'enriched' }
+    { index: 2, id: null, type: 'filter', items: 1000000, exact: true, workers: null, effectCalls: {}, checkpoint: null },
+    { index: 3, id: null, type: 'parallel', items: 1000000, exact: false, workers: 8, effectCalls: {}, checkpoint: null },
+    { index: 4, id: 'enrich', type: 'map', items: 1000000, exact: false, workers: null, effectCalls: { fetchCustomer: 1000000 }, checkpoint: null },
+    { index: 5, id: null, type: 'checkpoint', items: 1000000, exact: false, workers: null, effectCalls: {}, checkpoint: 'enriched' }
   ])
   assert.deepEqual(simulation.effectCalls, { fetchCustomer: 1000000 })
   assert.equal(simulation.checkpoints, 1)
@@ -36,8 +36,8 @@ test('simulate reports effect volume and effects that run before a checkpoint', 
   const [simulation] = simulatePipelines(SOURCE, { input: 1000000 })
 
   assert.deepEqual(simulation.problems, [
-    { stage: 3, message: 'up to 1,000,000 calls to effect "fetchCustomer"' },
-    { stage: 3, message: 'effect "fetchCustomer" runs before checkpoint "enriched": items processed before a failure are fetched again on retry (at-least-once)' }
+    { stage: 4, message: 'up to 1,000,000 calls to effect "fetchCustomer"' },
+    { stage: 4, message: 'effect "fetchCustomer" runs before checkpoint "enriched": items processed before a failure are fetched again on retry (at-least-once)' }
   ])
 })
 
@@ -80,16 +80,16 @@ test('renderSimulationText prints input, operations, and potential problems', ()
     '  1,000,000 records',
     '',
     'OPERATIONS',
-    '  1 filter     1,000,000 items in',
-    '  2 parallel   ≤1,000,000 items in, 8 workers',
-    '  3 map        ≤1,000,000 items in, ≤1,000,000 calls to fetchCustomer @enrich',
-    '  4 checkpoint ≤1,000,000 items in, saved as "enriched"',
+    '  2 filter     1,000,000 items in',
+    '  3 parallel   ≤1,000,000 items in, 8 workers',
+    '  4 map        ≤1,000,000 items in, ≤1,000,000 calls to fetchCustomer @enrich',
+    '  5 checkpoint ≤1,000,000 items in, saved as "enriched"',
     '',
     'POTENTIAL PROBLEMS',
-    '  ⚠ stage 3: up to 1,000,000 calls to effect "fetchCustomer"',
-    '  ⚠ stage 3: effect "fetchCustomer" runs before checkpoint "enriched": items processed before a failure are fetched again on retry (at-least-once)'
+    '  ⚠ stage 4: up to 1,000,000 calls to effect "fetchCustomer"',
+    '  ⚠ stage 4: effect "fetchCustomer" runs before checkpoint "enriched": items processed before a failure are fetched again on retry (at-least-once)'
   ].join('\n'))
-  assert.match(renderSimulationText(simulatePipelines('r := xs |> flatMap(f) |> map(g)\n')[0]), / {2}2 map {5}unknown items in\n\nPOTENTIAL PROBLEMS\n {2}none$/)
+  assert.match(renderSimulationText(simulatePipelines('r := xs |> flatMap(f) |> map(g)\n')[0]), / {2}3 map {5}unknown items in\n\nPOTENTIAL PROBLEMS\n {2}none$/)
 })
 
 test('simulatePipelines is exported from the compiler entry point', () => {

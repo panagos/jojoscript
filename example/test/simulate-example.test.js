@@ -26,7 +26,7 @@ test("jojo simulate shows what a quarter of a million products would cost, witho
   const stdout = execFileSync(process.execPath, [CLI, "simulate", SOURCE_FILE, "--input", "250000", "--pipeline", "pricedProducts"], { encoding: "utf8" })
 
   assert.match(stdout, /^SIMULATION pricedProducts\n\nINPUT\n {2}250,000 records\n/)
-  assert.match(stdout, / {2}2 parallel {3}≤250,000 items in, 16 workers\n/)
-  assert.match(stdout, /⚠ stage 3: up to 250,000 calls to effect "fetchPrice"/)
-  assert.match(stdout, /⚠ stage 3: effect "fetchPrice" runs before checkpoint "priced"/)
+  assert.match(stdout, / {2}3 parallel {3}≤250,000 items in, 16 workers\n/)
+  assert.match(stdout, /⚠ stage 4: up to 250,000 calls to effect "fetchPrice"/)
+  assert.match(stdout, /⚠ stage 4: effect "fetchPrice" runs before checkpoint "priced"/)
 })

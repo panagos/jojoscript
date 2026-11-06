@@ -486,7 +486,7 @@ test('simulate prints a static simulation for a chosen input size', () => {
   const text = runCli(['simulate', file, '--input', '5000', '--pipeline', 'r'])
   assert.equal(text.code, 0)
   assert.match(text.stdout, /^SIMULATION r\n\nINPUT\n {2}5,000 records\n/)
-  assert.match(text.stdout, /⚠ stage 1: up to 5,000 calls to effect "save"/)
+  assert.match(text.stdout, /⚠ stage 2: up to 5,000 calls to effect "save"/)
   assert.doesNotMatch(text.stdout, /SIMULATION other/)
 
   const [simulation] = JSON.parse(runCli(['simulate', file, '--input=10', '--format', 'json']).stdout)

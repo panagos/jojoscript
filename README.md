@@ -778,16 +778,17 @@ INPUT
   250,000 records
 
 OPERATIONS
-  1 filter     250,000 items in
-  2 parallel   ≤250,000 items in, 16 workers
-  3 map        ≤250,000 items in, ≤250,000 calls to fetchPrice
-  4 checkpoint ≤250,000 items in, saved as "priced"
+  2 filter     250,000 items in
+  3 parallel   ≤250,000 items in, 16 workers
+  4 map        ≤250,000 items in, ≤250,000 calls to fetchPrice
+  5 checkpoint ≤250,000 items in, saved as "priced"
 
 POTENTIAL PROBLEMS
-  ⚠ stage 3: up to 250,000 calls to effect "fetchPrice"
-  ⚠ stage 3: effect "fetchPrice" runs before checkpoint "priced": items processed before a failure are fetched again on retry (at-least-once)
+  ⚠ stage 4: up to 250,000 calls to effect "fetchPrice"
+  ⚠ stage 4: effect "fetchPrice" runs before checkpoint "priced": items processed before a failure are fetched again on retry (at-least-once)
 ```
 
+Stages are numbered as in `jojo explain`, where the source is stage 1.
 Item counts flow through the stages as upper bounds (`≤` once a filtering
 stage such as `filter`, `unique`, or `distinctBy` has run). `take`, `skip`,
 `chunk`, `batch`, and `window` change them exactly; `flatMap` and `groupBy`

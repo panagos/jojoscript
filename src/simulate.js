@@ -49,7 +49,7 @@ function simulateStages(explanation, input) {
   return explanation.stages.slice(1).map(stage => {
     const effects = [...stage.effects, ...stage.effectfulFunctions]
     const simulated = {
-      index: stage.index - 1,
+      index: stage.index,
       id: stage.id,
       type: stage.type,
       items,
