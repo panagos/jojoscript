@@ -503,3 +503,23 @@ test('simulate prints a static simulation for a chosen input size', () => {
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
+
+test('why prints plain-language answers as text or JSON', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, 'a := xs |> sort\n\nb := ys |> count\n')
+
+  const text = runCli(['why', file, '--pipeline', 'a'])
+  assert.equal(text.code, 0)
+  assert.match(text.stdout, /^WHY a\n\nWhy is this pipeline deterministic\?\n→ /)
+  assert.match(text.stdout, /Why is this pipeline not lazy\?\n→ Stage 2 \(sort\) needs the complete input/)
+  assert.doesNotMatch(text.stdout, /WHY b/)
+
+  const json = JSON.parse(runCli(['why', file, '--format', 'json']).stdout)
+  assert.deepEqual(json.map(why => why.name), ['a', 'b'])
+
+  fs.writeFileSync(file, 'x := 1\n')
+  assert.equal(runCli(['why', file]).stdout, 'No pipelines found.\n')
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
