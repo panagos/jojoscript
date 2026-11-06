@@ -31,6 +31,11 @@ export {
 } from './pipeline-explain.js'
 
 export {
+  planPipelines,
+  planToJojo
+} from './pipeline-plan.js'
+
+export {
   transformEffectDeclarations,
   transformHandleBlocks,
   findEffectDeclarations,
