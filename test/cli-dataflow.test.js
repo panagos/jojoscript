@@ -168,6 +168,83 @@ test('explain reports when a file has no pipelines', () => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+test('--help mentions the plan and generate subcommands', () => {
+  const { stdout } = runCli(['--help'])
+  assert.match(stdout, /jojo plan <file.jojo> \[--format json\]/)
+  assert.match(stdout, /jojo generate <plan.json>/)
+})
+
+test('plan prints the machine-readable execution plan as JSON', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), PIPELINE_SOURCE)
+
+  const { stdout, code } = runCli(['plan', path.join(dir, 'p.jojo')])
+  const plan = JSON.parse(stdout)
+  assert.equal(code, 0)
+  assert.equal(plan.version, 1)
+  assert.equal(plan.pipelines[0].pipeline, 'result')
+  assert.deepEqual(plan.pipelines[0].stages.slice(0, 3), [
+    { type: 'source', expression: 'orders' },
+    { type: 'filter', expression: 'n => n % 2 == 0' },
+    { type: 'checkpoint', name: 'enriched' }
+  ])
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('plan accepts --format json and --format=json', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'p.jojo'), 'a := xs |> count\n')
+
+  const separate = runCli(['plan', path.join(dir, 'p.jojo'), '--format', 'json'])
+  const inline = runCli(['plan', path.join(dir, 'p.jojo'), '--format=json'])
+  assert.equal(separate.code, 0)
+  assert.equal(inline.stdout, separate.stdout)
+
+  const rejected = runCli(['plan', path.join(dir, 'p.jojo'), '--format=text'])
+  assert.equal(rejected.code, 1)
+  assert.match(rejected.stderr, /--format must be "json"/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('generate turns a JSON plan into a JojoScript program', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'plan.json'), JSON.stringify({
+    version: 1,
+    pipelines: [{
+      pipeline: 'paid',
+      stages: [
+        { type: 'source', expression: 'orders' },
+        { type: 'filter', expression: 'order => order.paid' },
+        { type: 'parallel', concurrency: 4 }
+      ]
+    }]
+  }))
+
+  const { stdout, code } = runCli(['generate', path.join(dir, 'plan.json')])
+  assert.equal(code, 0)
+  assert.equal(stdout, 'paid := orders\n  |> filter(order => order.paid)\n  |> parallel(4)\n')
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('generate reports invalid JSON and invalid plans as one line', () => {
+  const dir = tempProject()
+  fs.writeFileSync(path.join(dir, 'broken.json'), '{ "version": ')
+  fs.writeFileSync(path.join(dir, 'invalid.json'), JSON.stringify({ version: 1, pipelines: [{ pipeline: 'a', stages: [] }] }))
+
+  const broken = runCli(['generate', path.join(dir, 'broken.json')])
+  assert.equal(broken.code, 1)
+  assert.match(broken.stderr, /^jojo: Invalid plan JSON: /)
+
+  const invalid = runCli(['generate', path.join(dir, 'invalid.json')])
+  assert.equal(invalid.code, 1)
+  assert.equal(invalid.stderr, 'jojo: Invalid plan: pipelines[0].stages must be a non-empty array\n')
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test('run, then resume, reuses the checkpoint instead of recomputing it', () => {
   const dir = tempProject()
   const file = path.join(dir, 'p.jojo')

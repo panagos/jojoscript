@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { compile, compileFile, compileDirectory } from '../src/compiler.js'
 import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeline-ir.js'
 import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
+import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -26,6 +27,8 @@ Usage:
   jojo run <file.jojo> [--out <directory>]
   jojo graph <file.jojo> [--format text|dot]
   jojo explain <file.jojo> [--format text|json]
+  jojo plan <file.jojo> [--format json]
+  jojo generate <plan.json>
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -42,6 +45,8 @@ Examples:
   jojo graph orders.jojo
   jojo graph orders.jojo --format dot
   jojo explain orders.jojo --format json
+  jojo plan orders.jojo --format=json
+  jojo generate orders.plan.json
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -182,6 +187,24 @@ function explain(input, format) {
   console.log(explanations.map(renderExplanationText).join('\n\n'))
 }
 
+function plan(input) {
+  const resolvedInput = requireSingleFile('plan', input)
+  console.log(JSON.stringify(planPipelines(fs.readFileSync(resolvedInput, 'utf8')), null, 2))
+}
+
+function generate(input) {
+  const resolvedInput = requireSingleFile('generate', input)
+
+  let parsed
+  try {
+    parsed = JSON.parse(fs.readFileSync(resolvedInput, 'utf8'))
+  } catch (error) {
+    fail(`Invalid plan JSON: ${error.message}`)
+  }
+
+  process.stdout.write(planToJojo(parsed))
+}
+
 function profile(input) {
   const resolvedInput = requireSingleFile('profile', input)
   const source = fs.readFileSync(resolvedInput, 'utf8')
@@ -298,8 +321,8 @@ function parseFormatFlags(args, startIndex, formats) {
   for (let i = startIndex; i < args.length; i++) {
     const arg = args[i]
 
-    if (arg === '--format') {
-      const value = args[++i]
+    if (arg === '--format' || arg.startsWith('--format=')) {
+      const value = arg === '--format' ? args[++i] : arg.slice('--format='.length)
       if (!formats.includes(value)) fail(`--format must be ${formats.map(name => `"${name}"`).join(' or ')}`)
       format = value
       continue
@@ -370,7 +393,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -401,6 +424,18 @@ function main() {
   if (command === 'graph') {
     const { format } = parseFormatFlags(args, 2, ['text', 'dot'])
     graph(input, format)
+    return
+  }
+
+  if (command === 'plan') {
+    parseFormatFlags(args, 2, ['json'])
+    plan(input)
+    return
+  }
+
+  if (command === 'generate') {
+    if (args[2]) fail(`Unknown option: ${args[2]}`)
+    generate(input)
     return
   }
 
