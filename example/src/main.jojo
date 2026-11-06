@@ -76,7 +76,6 @@ async fn printFeatureShowcase(posts: posts) {
   console.log("effects: syncUser, test handlers ->", await syncUserWithTestHandlers(1))
 }
 
-
 fn buildReport(posts) {
   grouped := groupByUser(posts)
 
