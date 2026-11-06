@@ -5,7 +5,8 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawn, spawnSync } from 'node:child_process'
 
-import { compile, compileFile, compileDirectory } from '../src/compiler.js'
+import { compile, compileFile, compileDirectory, findJojoFiles } from '../src/compiler.js'
+import { formatSource } from '../src/formatter.js'
 import { analyzePipelines, renderGraphText, renderGraphDot } from '../src/pipeline-ir.js'
 import { explainPipelines, renderExplanationText } from '../src/pipeline-explain.js'
 import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
@@ -37,6 +38,7 @@ Usage:
   jojo describe <file.jojo> [--pipeline <name>]
   jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
   jojo why <file.jojo> [--format text|json] [--pipeline <name>]
+  jojo format <file.jojo|directory> [--check]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -59,6 +61,7 @@ Examples:
   jojo describe orders.jojo
   jojo simulate orders.jojo --input 1000000
   jojo why orders.jojo --pipeline enrichOrders
+  jojo format src --check
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -262,6 +265,24 @@ function simulate(input, { format, pipeline, records }) {
   }
 
   console.log(simulations.length ? simulations.map(renderSimulationText).join('\n\n') : 'No pipelines found.')
+}
+
+function formatFiles(input, checkOnly) {
+  const resolvedInput = path.resolve(input)
+  if (!fs.existsSync(resolvedInput)) fail(`Not found: ${resolvedInput}`)
+
+  const files = fs.statSync(resolvedInput).isDirectory() ? findJojoFiles(resolvedInput) : [resolvedInput]
+  const changed = files.filter(file => {
+    const source = fs.readFileSync(file, 'utf8')
+    const formatted = formatSource(source)
+    if (formatted === source) return false
+    if (!checkOnly) fs.writeFileSync(file, formatted, 'utf8')
+    return true
+  })
+
+  if (checkOnly && !changed.length) console.log('All files are formatted.')
+  for (const file of changed) console.log(checkOnly ? `Needs formatting: ${file}` : `Formatted ${file}`)
+  if (checkOnly && changed.length) process.exitCode = 1
 }
 
 function why(input, format, wanted) {
@@ -482,7 +503,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'why', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'why', 'format', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -519,6 +540,14 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'format') {
+    const checkOnly = args.includes('--check')
+    const unknown = args.slice(2).find(arg => arg !== '--check')
+    if (unknown) fail(`Unknown option: ${unknown}`)
+    formatFiles(input, checkOnly)
     return
   }
 
