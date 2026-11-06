@@ -17,12 +17,13 @@ Syntax highlighting and a document formatter for JojoScript (`.jojo`) files.
   - `effect name(params)` declarations and `handle { ... }` blocks;
   - the `|>` pipeline operator, the `_` placeholder argument, `@stage-id`
     labels, and named `pipeline name { source ... }` declarations.
-- `Format Document` support (line-based reindentation): normalizes
-  indentation from brace/bracket/paren nesting, indents pipeline (`|>`)
-  continuations and multi-line `:=` right-hand sides one extra level, trims
-  trailing whitespace, and collapses excess blank lines. It intentionally
-  does not rewrite expressions — JojoScript's own compiler has no AST
-  either (see `src/compiler.js` in the main package).
+- `Format Document` support, using the same line-based formatter as
+  `jojo format` (`src/formatter.mjs` is an identical copy of the package's
+  `src/formatter.js`, enforced by a test). It indents one level per line that
+  opens brackets, adds a level for `|>` stages, contract clauses, `| Variant`
+  lines, ternaries, method chains, and `:=` / `=>` continuations, trims
+  trailing whitespace, and collapses excess blank lines. It never rewrites
+  expressions.
 
 ## Try it
 

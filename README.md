@@ -31,6 +31,7 @@ jojo check <file.jojo|plan.json> [--format text|json] [--machine]
 jojo describe <file.jojo> [--pipeline <name>]
 jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
 jojo why <file.jojo> [--format text|json] [--pipeline <name>]
+jojo format <file.jojo|directory> [--check]
 jojo profile <file.jojo>
 jojo resume <file.jojo> [--out <directory>]
 jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -50,6 +51,7 @@ jojo --help
 - `jojo describe app.jojo` prints one JSON document describing the pipelines, effects, functions, and types in a file. See [Describing programs](#describing-programs).
 - `jojo simulate app.jojo --input 1000000` estimates item counts, effect calls, and risks for a given input size without running anything. See [Simulating pipelines](#simulating-pipelines).
 - `jojo why app.jojo` answers questions such as "why is this pipeline not deterministic?" in plain language. See [Asking why](#asking-why).
+- `jojo format src` reformats `.jojo` files in place; `--check` lists unformatted files and exits 1. See [Formatting](#formatting).
 - `jojo profile app.jojo` executes a pipeline and prints per-node item counts, duration, and throughput.
 - `jojo resume app.jojo` reuses completed file-backed checkpoints; `jojo replay app.jojo --from name` starts from a selected checkpoint.
 - `jojo test app.jojo` compiles the file and runs its co-located `<name>.test.js` test when present.
@@ -1522,6 +1524,30 @@ const total = users
 boundaries because they need the complete input. See
 [ITERATORS.md](ITERATORS.md) for the complete proposal and memory model.
 
+## Formatting
+
+`jojo format <file.jojo|directory>` reformats files in place and prints each
+file it changed. `--check` changes nothing: it lists the files that need
+formatting and exits with code 1 if there are any, which suits CI and
+generate-format-check loops.
+
+The formatter is line-based, like the compiler: it normalizes indentation and
+whitespace but never rewrites expressions.
+
+- A line that opens brackets indents their contents one level, however many
+  it opens (`posts.reduce((groups, post) => {`).
+- `|>` stages, `requires` / `ensures` clauses, `| Variant` lines, ternary
+  `?` / `:` lines, leading `.method()` chains, and the line after a trailing
+  `:=` or `=>` are indented one extra level. Stages inside a
+  `pipeline name { ... }` block line up with its `source` line.
+- Trailing whitespace is removed, Windows line endings become `\n`, runs of
+  blank lines collapse to one, and the file ends with a single newline.
+- Block comments and template literal text are left untouched.
+
+`formatSource(source, { indent })` is exported from `@panagos/jojoscript`, and
+the VS Code extension's `Format Document` uses the same formatter. Every file
+under `example/src` is kept formatted by a test.
+
 ## Editor support
 
 See [editors/vscode](editors/vscode) for a VS Code extension providing syntax
@@ -1535,8 +1561,6 @@ resulting `.vsix` locally.
 
 - **No source maps.** Stack traces from compiled `dist/*.js` point at the
   generated JavaScript, not the original `.jojo` source.
-- **No `jojo fmt` CLI command.** Formatting is only available through the
-  VS Code extension's `Format Document` command, not the `jojo` CLI.
 - **No regex-literal awareness in the lexer.** A regex containing `{`, `}`,
   `(`, or `)` can confuse brace/paren-depth-sensitive transforms (pipelines,
   `match`, destructuring, type annotations). Prefer `new RegExp(...)` in code

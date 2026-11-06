@@ -2,7 +2,18 @@
 
 ## Unreleased
 
+### Tooling
+
+- Added `jojo format <file.jojo|directory> [--check]`, which reformats files
+  in place or, with `--check`, lists unformatted files and exits 1. Exported
+  `formatSource`.
+- The formatter now indents one level per line that opens brackets, and
+  indents ternary lines, method chains, `=>` continuations, contract clauses,
+  and tagged-union variant lines. Named pipeline stages align with `source`.
+
 ### Editor support
+
+- The VS Code extension's `Format Document` uses the shared formatter.
 
 - VS Code extension 0.2.0 highlights the 1.0 syntax: named pipelines and
   their `source` line, `@stage-id` labels, tagged union declarations and
