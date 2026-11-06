@@ -358,6 +358,26 @@ A stage can have no arguments (`users |> unique`) or arguments
 inputs, including `await` expressions and pipelines inside `return`
 statements, function bodies, and object literals.
 
+#### Stage IDs
+
+A stage can be labelled with a trailing `@id` (letters, digits, `_`, and `-`,
+starting with a letter or `_`):
+
+```jojo
+saved := orders
+  |> filter(order => order.paid)   @paid-only
+  |> map(assignCarrier)             @pick-carrier
+  |> checkpoint("prepared")
+```
+
+The label is removed from the compiled code. It becomes the stage's node id in
+runtime metadata (checkpoint, inspect, parallel, batch, and `jojo profile`),
+in `jojo graph`, in `jojo explain` (`id` and `@pick-carrier` in the text), and
+in `jojo plan` (an `id` field that `jojo generate` writes back). Tools and
+LLMs can therefore refer to "the `@pick-carrier` stage" instead of a position
+in the source. IDs must be unique within a pipeline. They are not part of the
+pipeline's hash, so renaming a label never invalidates saved checkpoints.
+
 #### Placeholder argument
 
 By default the piped value is inserted as the stage's first argument. The
@@ -591,6 +611,7 @@ The plan format, version 1:
 | `map`, `filter`, `flatMap`, `tap`, `mapAsync`, `filterAsync`, `find`, `some`, `every`, `sortBy`, `distinctBy`, `groupBy`, `partition`, `catch` | `expression`: the single function argument as source text |
 | any other stage | `args`: argument source strings, omitted when there are none |
 | `.prop` / `.method()` | `{ "type": ".length" }` reads a property; `{ "type": ".trim", "args": [] }` calls it |
+| `id` (any stage after the source) | Optional [stage ID](#stage-ids) such as `"pick-carrier"`, unique within the pipeline |
 
 A stage whose setting is not a literal (`parallel(limit)`) keeps it in `args`
 instead, so a plan is always lossless. Arguments stay source text: the plan

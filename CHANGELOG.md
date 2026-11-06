@@ -14,6 +14,9 @@
 - Added `pure fn` and `effectful fn` declarations. The compiler rejects a pure
   function that uses a declared effect or an effectful function, and
   `jojo explain` treats stages using effectful functions as effectful.
+- Added explicit stage IDs (`|> map(enrich) @enrich`), used as node ids in
+  runtime metadata, `jojo graph`, `jojo explain`, and `jojo plan` without
+  changing the pipeline hash.
 - Added function contracts: `requires` and `ensures` clauses on block
   functions throw a non-retryable `ContractError` when broken.
 
@@ -38,6 +41,7 @@
 - Added a payment-outcome example for tagged unions.
 - Added a user-import example for pure and effectful functions.
 - Added a discount-pricing example for function contracts.
+- Added a shipment example for stage IDs.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
   it with `jojo generate`, and runs the regenerated program.
 
