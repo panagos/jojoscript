@@ -60,3 +60,5 @@ export {
 } from './why.js'
 
 export { formatSource } from './formatter.js'
+
+export { parseSource } from './parse.js'
