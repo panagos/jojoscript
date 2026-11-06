@@ -12,6 +12,7 @@ import { planPipelines, planToJojo } from '../src/pipeline-plan.js'
 import { checkSource, checkPlan, renderCheckText } from '../src/check.js'
 import { describeSource } from '../src/describe.js'
 import { simulatePipelines, renderSimulationText } from '../src/simulate.js'
+import { whyPipelines, renderWhyText } from '../src/why.js'
 import { FileCheckpointStore } from '../src/runtime/checkpoint-store.js'
 
 const PACKAGE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -35,6 +36,7 @@ Usage:
   jojo check <file.jojo|plan.json> [--format text|json] [--machine]
   jojo describe <file.jojo> [--pipeline <name>]
   jojo simulate <file.jojo> [--input <records>] [--format text|json] [--pipeline <name>]
+  jojo why <file.jojo> [--format text|json] [--pipeline <name>]
   jojo profile <file.jojo>
   jojo resume <file.jojo> [--out <directory>]
   jojo replay <file.jojo> --from <checkpoint> [--out <directory>]
@@ -56,6 +58,7 @@ Examples:
   jojo check generated.jojo --machine
   jojo describe orders.jojo
   jojo simulate orders.jojo --input 1000000
+  jojo why orders.jojo --pipeline enrichOrders
   jojo profile orders.jojo
   jojo resume orders.jojo
   jojo replay orders.jojo --from enriched
@@ -259,6 +262,19 @@ function simulate(input, { format, pipeline, records }) {
   }
 
   console.log(simulations.length ? simulations.map(renderSimulationText).join('\n\n') : 'No pipelines found.')
+}
+
+function why(input, format, wanted) {
+  const resolvedInput = requireSingleFile('why', input)
+  const all = whyPipelines(fs.readFileSync(resolvedInput, 'utf8'))
+  const answers = selectPipelines(all, all.map(item => item.name), wanted)
+
+  if (format === 'json') {
+    console.log(JSON.stringify(answers, null, 2))
+    return
+  }
+
+  console.log(answers.length ? answers.map(renderWhyText).join('\n\n') : 'No pipelines found.')
 }
 
 function check(input, format) {
@@ -466,7 +482,7 @@ function testCmd(input) {
   process.exit(result.status ?? 0)
 }
 
-const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'profile', 'resume', 'replay', 'test'])
+const COMMANDS = new Set(['build', 'run', 'graph', 'explain', 'plan', 'generate', 'check', 'describe', 'simulate', 'why', 'profile', 'resume', 'replay', 'test'])
 
 function main() {
   const args = process.argv.slice(2)
@@ -503,6 +519,12 @@ function main() {
   if (command === 'plan') {
     const { pipeline } = parseFormatFlags(args, 2, ['json'])
     plan(input, pipeline)
+    return
+  }
+
+  if (command === 'why') {
+    const { format, pipeline } = parseFormatFlags(args, 2, ['text', 'json'])
+    why(input, format, pipeline)
     return
   }
 
