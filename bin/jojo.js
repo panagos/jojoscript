@@ -30,7 +30,7 @@ function usage() {
 
 Usage:
   jojo build <file.jojo|directory> [--out <directory>] [--watch]
-  jojo run <file.jojo> [--out <directory>]
+  jojo run <file.jojo> [--out <directory>] [--deterministic [--seed <n>]]
   jojo graph <file.jojo> [--format text|dot] [--pipeline <name>]
   jojo explain <file.jojo> [--format text|json] [--pipeline <name>]
   jojo plan <file.jojo> [--format json] [--pipeline <name>]
@@ -54,6 +54,7 @@ Examples:
   jojo build src --out dist
   jojo build src --watch
   jojo run src/main.jojo
+  jojo run src/main.jojo --deterministic --seed 42
   jojo graph orders.jojo
   jojo graph orders.jojo --format dot
   jojo explain orders.jojo --format json
@@ -154,7 +155,13 @@ function watch(input, out) {
   process.once('SIGTERM', stop)
 }
 
-function run(input, out) {
+// The whole program, including top-level code, is imported inside the deterministic scope.
+function deterministicBootstrap(output, seed) {
+  return `import { deterministic } from ${JSON.stringify(RUNTIME_IMPORT)}\n` +
+    `await deterministic(() => import(${JSON.stringify(pathToFileURL(output).href)}), { seed: ${seed} })\n`
+}
+
+function run(input, out, seed = null) {
   const resolvedInput = path.resolve(input)
 
   if (!fs.existsSync(resolvedInput) || fs.statSync(resolvedInput).isDirectory()) {
@@ -163,7 +170,8 @@ function run(input, out) {
 
   const [{ output }] = build(input, out)
 
-  const child = spawn(process.execPath, [output], { stdio: 'inherit' })
+  const args = seed === null ? [output] : ['--input-type=module', '--eval', deterministicBootstrap(output, seed)]
+  const child = spawn(process.execPath, args, { stdio: 'inherit' })
   child.on('exit', code => process.exit(code ?? 0))
   child.on('error', error => fail(error.message))
 }
@@ -620,17 +628,23 @@ function main() {
     return
   }
 
+  if (command === 'run') {
+    const { value: seed, rest } = takeOption(args.filter(arg => arg !== '--deterministic'), '--seed')
+    const isDeterministic = args.includes('--deterministic')
+    if (seed !== null && !isDeterministic) fail('--seed requires --deterministic')
+    if (seed !== null && !/^\d+$/.test(seed ?? '')) fail('--seed must be a non-negative integer')
+
+    const { out, watch: shouldWatch } = parseFlags(rest, 2)
+    if (shouldWatch) fail('--watch is not supported with `jojo run`, use `jojo build --watch` instead')
+    run(input, out, isDeterministic ? Number(seed ?? 1) : null)
+    return
+  }
+
   const { out, watch: shouldWatch } = parseFlags(args, 2)
 
   if (command === 'resume') {
     if (shouldWatch) fail('--watch is not supported with `jojo resume`')
     resume(input, out)
-    return
-  }
-
-  if (command === 'run') {
-    if (shouldWatch) fail('--watch is not supported with `jojo run`, use `jojo build --watch` instead')
-    run(input, out)
     return
   }
 
