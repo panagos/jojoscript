@@ -229,6 +229,51 @@ patterns are all plain expressions still requires a final `_` arm and
 compiles exactly as before. See
 [example/src/application/structured-match-example.jojo](example/src/application/structured-match-example.jojo).
 
+### Tagged unions
+
+`type` declares a tagged union: a value that is exactly one of a fixed set of
+variants. Each variant has a constructor:
+
+```jojo
+type PaymentResult =
+  | Paid(amount)
+  | Declined(reason)
+  | Pending
+```
+
+becomes:
+
+```js
+const PaymentResult = defineType("PaymentResult", { Paid: ["amount"], Declined: ["reason"], Pending: [] }); const { Paid, Declined, Pending } = PaymentResult
+```
+
+`Paid(40)` returns the frozen plain object `{ tag: "Paid", amount: 40 }`, so
+values serialize to JSON unchanged. Constructors reject the wrong number of
+arguments (`Paid expects 1 argument (amount), got 0`), and fieldless variants
+are called with no arguments (`Pending()`). `export type` exports the type and
+all of its constructors. Variant names must start with an uppercase letter,
+variants and fields must be unique, and no field may be named `tag`.
+
+Constructor patterns match a variant by its tag and bind its fields by
+position, so they also match values decoded from JSON:
+
+```jojo
+message := match result {
+  Paid(amount) => `paid ${amount}`
+  Declined("insufficient funds") => "ask for another card"
+  Declined(reason) => `declined: ${reason}`
+  Pending() => "waiting for the bank"
+}
+```
+
+Pattern arguments can be literals, `_`, bindings, or nested object and
+constructor patterns. Like object patterns, a match over constructor patterns
+may omit `_` and throws `TypeError` when nothing matches. A capitalized call
+such as `Ok(v)` inside a `match` is always a constructor pattern. Avoid naming
+a variant `Error`, since its constructor would shadow JavaScript's `Error` in
+that module. See
+[example/src/application/tagged-unions-example.jojo](example/src/application/tagged-unions-example.jojo).
+
 ### Pipelines
 
 ```jojo

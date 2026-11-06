@@ -8,6 +8,9 @@
   fields, bind named fields, rename bindings, and match nested objects. Arms
   may be separated by newlines, and a structural match without `_` throws a
   `TypeError` when nothing matches.
+- Added tagged unions: `type Name = | Variant(fields) | ...` declares frozen,
+  JSON-friendly variant constructors (`defineType` runtime helper), and
+  constructor patterns such as `Ok(value)` match them in `match`.
 
 ### Tooling
 
@@ -27,6 +30,7 @@
 - Added an order-enrichment example whose test runs the pipeline and checks
   its `explainPipelines` and `jojo explain` output.
 - Added an API-response example for structured `match` patterns.
+- Added a payment-outcome example for tagged unions.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
   it with `jojo generate`, and runs the regenerated program.
 
