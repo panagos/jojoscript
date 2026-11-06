@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Language
+
+- Added structured `match` patterns: object patterns that compare literal
+  fields, bind named fields, rename bindings, and match nested objects. Arms
+  may be separated by newlines, and a structural match without `_` throws a
+  `TypeError` when nothing matches.
+
 ### Tooling
 
 - Added `jojo explain <file.jojo> [--format text|json]`, a static description of
@@ -19,6 +26,7 @@
 
 - Added an order-enrichment example whose test runs the pipeline and checks
   its `explainPipelines` and `jojo explain` output.
+- Added an API-response example for structured `match` patterns.
 - Added a customer-ranking example whose test plans the pipeline, regenerates
   it with `jojo generate`, and runs the regenerated program.
 

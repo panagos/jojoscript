@@ -202,8 +202,32 @@ category := match true {
 }
 ```
 
-`match` is a value-equality construct, not structural pattern matching:
-patterns are plain expressions compared with `===`.
+#### Structured patterns
+
+Object patterns match on the shape of a value. Arms can be separated by
+newlines instead of commas:
+
+```jojo
+message := match result {
+  { status: "ok", value } => value
+  { status: "error", error: { code: 404 } } => "not found"
+  { status: "error", error } => handle(error)
+}
+```
+
+Inside an object pattern:
+
+- a literal or expression (`status: "ok"`, `code: Status.OK`) is compared with `===`;
+- a bare name (`value`) binds that field, and the field must be present;
+- `key: name` binds the field under another name, and `key: { ... }` matches a nested object;
+- quoted keys (`"content-type": "json"`) are supported.
+
+A match with at least one object pattern may omit the `_` arm. If no arm
+matches, it throws `TypeError: No match arm matched the value`, so an
+unexpected shape fails loudly instead of returning `undefined`. A match whose
+patterns are all plain expressions still requires a final `_` arm and
+compiles exactly as before. See
+[example/src/application/structured-match-example.jojo](example/src/application/structured-match-example.jojo).
 
 ### Pipelines
 
