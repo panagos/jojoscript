@@ -231,3 +231,9 @@ test('build compiles a whole directory', () => {
     assert.match(stdout, /Compiled .*p\.jojo -> .*dist[\\/]p\.js/)
   })
 })
+
+test('--pipeline requires a pipeline name', () => {
+  withProject((dir, file) => {
+    assertFails(['explain', file, '--pipeline'], /--pipeline requires a pipeline name/)
+  })
+})

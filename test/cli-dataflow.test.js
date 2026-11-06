@@ -103,7 +103,7 @@ test('graph reports when a file has no pipelines', () => {
 
 test('--help mentions the explain subcommand', () => {
   const { stdout } = runCli(['--help'])
-  assert.match(stdout, /jojo explain <file.jojo> \[--format text\|json\]/)
+  assert.match(stdout, /jojo explain <file.jojo> \[--format text\|json\] \[--pipeline <name>\]/)
 })
 
 test('explain prints the structured meaning of each pipeline', () => {
@@ -170,7 +170,7 @@ test('explain reports when a file has no pipelines', () => {
 
 test('--help mentions the plan and generate subcommands', () => {
   const { stdout } = runCli(['--help'])
-  assert.match(stdout, /jojo plan <file.jojo> \[--format json\]/)
+  assert.match(stdout, /jojo plan <file.jojo> \[--format json\] \[--pipeline <name>\]/)
   assert.match(stdout, /jojo generate <plan.json>/)
 })
 
@@ -384,6 +384,42 @@ test('test surfaces a compile error as a friendly message', () => {
   const { stderr, code } = runCli(['test', file])
   assert.equal(code, 1)
   assert.match(stderr, /jojo: .*default `_` arm/)
+
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+test('graph, explain, and plan can select a single named pipeline with --pipeline', () => {
+  const dir = tempProject()
+  const file = path.join(dir, 'p.jojo')
+  fs.writeFileSync(file, [
+    'pipeline activeUsers {',
+    '  source users',
+    '  |> filter(user => user.active)',
+    '}',
+    '',
+    'pipeline paidOrders {',
+    '  source orders',
+    '  |> filter(order => order.paid)',
+    '  |> take(5)',
+    '}',
+    ''
+  ].join('\n'))
+
+  const graph = runCli(['graph', file, '--pipeline', 'paidOrders'])
+  assert.equal(graph.code, 0)
+  assert.match(graph.stdout, /^SOURCE orders\n/)
+  assert.doesNotMatch(graph.stdout, /users|Pipeline #/)
+
+  const explain = runCli(['explain', file, '--pipeline', 'activeUsers'])
+  assert.match(explain.stdout, /^PIPELINE activeUsers\n/)
+  assert.doesNotMatch(explain.stdout, /paidOrders/)
+
+  const plan = JSON.parse(runCli(['plan', file, '--pipeline=paidOrders']).stdout)
+  assert.deepEqual(plan.pipelines.map(pipeline => pipeline.pipeline), ['paidOrders'])
+
+  const missing = runCli(['explain', file, '--pipeline', 'nope'])
+  assert.equal(missing.code, 1)
+  assert.match(missing.stderr, /No pipeline named "nope"/)
 
   fs.rmSync(dir, { recursive: true, force: true })
 })
