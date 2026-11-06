@@ -1,0 +1,24 @@
+/*
+ * A small module written so `jojo check` can verify it statically: the
+ * tagged union makes every outcome explicit, and the contract states what a
+ * caller must pass. See the test for the structured errors an edit produces.
+ */
+
+export type Quote =
+  | Quoted(price)
+  | Rejected(reason)
+
+export fn quoteShipping(weightKg)
+  requires weightKg > 0
+{
+  return weightKg > 30 ? Rejected("too heavy to ship") : Quoted(weightKg * 3)
+}
+
+export fn describeQuote(quote) {
+  return match quote {
+    Quoted(price) => `ships for ${price}`
+    Rejected(reason) => reason
+  }
+}
+
+export fn sampleQuote() = quoteShipping(2)
