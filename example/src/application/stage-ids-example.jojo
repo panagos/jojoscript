@@ -1,0 +1,17 @@
+/*
+ * `@id` labels give stages stable names that tools, plans, and checkpoint
+ * metadata can refer to, for example "the @pick-carrier stage".
+ */
+
+fn assignCarrier(shipment) {
+  return { ...shipment, carrier: shipment.weightKg > 10 ? "freight" : "post" }
+}
+
+export async fn prepareShipments(shipments) {
+  return shipments
+    |> filter(shipment => shipment.paid)    @paid-only
+    |> map(assignCarrier)                    @pick-carrier
+    |> checkpoint("prepared")                @prepared
+    |> toArrayAsync
+    |> await
+}
