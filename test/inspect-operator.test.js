@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { inspect, formatInspectReport } from '../src/runtime/inspect.js'
-import { ExecutionContext, runInContext } from '../src/runtime/execution-context.js'
+import { ExecutionContext, runInContext, getDefaultContext, resetDefaultContext } from '../src/runtime/execution-context.js'
 
 async function collect(iterable) {
   const result = []
@@ -77,4 +77,40 @@ test('formatInspectReport renders the items/throughput/duration summary', () => 
   assert.match(text, /items:\s+182391/)
   assert.match(text, /throughput:\s+12421\/s/)
   assert.match(text, /duration:\s+14\.68s/)
+})
+
+test('inspect prints its report unless the execution context is quiet', async t => {
+  const printed = t.mock.method(console, 'log', () => {})
+  const ctx = new ExecutionContext({ quiet: false })
+
+  await runInContext(ctx, () => collect(inspect([1, 2], 'loud-stage', { id: 'node-2', pipelineId: 'p1' })))
+
+  assert.equal(printed.mock.callCount(), 1)
+  assert.match(printed.mock.calls[0].arguments[0], /^loud-stage\n-{20}\nitems: {7}2\n/)
+  assert.equal(ctx.metrics.inspections[0].id, 'node-2')
+  assert.equal(ctx.metrics.inspections[0].pipelineId, 'p1')
+})
+
+test('inspect reports a failure before any item passed as zero successes', async () => {
+  const ctx = new ExecutionContext({ quiet: true })
+  async function* failing() {
+    throw new Error('source unavailable')
+  }
+
+  await assert.rejects(runInContext(ctx, () => collect(inspect(failing(), 'empty-stage'))), /source unavailable/)
+
+  const [report] = ctx.metrics.inspections
+  assert.equal(report.items, 0)
+  assert.equal(report.succeeded, 0)
+  assert.equal(report.failed, 1)
+})
+
+test('inspect falls back to the default execution context outside runInContext', async t => {
+  t.mock.method(console, 'log', () => {})
+  resetDefaultContext()
+
+  assert.deepEqual(await collect(inspect([1, 2, 3], 'default-context-stage')), [1, 2, 3])
+  assert.equal(getDefaultContext().metrics.inspections.at(-1).label, 'default-context-stage')
+
+  resetDefaultContext()
 })

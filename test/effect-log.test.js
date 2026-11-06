@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import { defineEffect, withHandlers, recordHandlers, replayHandlers } from '../src/runtime/effects.js'
-import { MemoryEffectLog, FileEffectLog } from '../src/runtime/effect-log.js'
+import { EffectLog, MemoryEffectLog, FileEffectLog } from '../src/runtime/effect-log.js'
 
 test('recordHandlers runs the real handler and appends each call to the log', async () => {
   const fetchUser = defineEffect('fetchUser__record', ['id'])
@@ -87,4 +87,25 @@ test('FileEffectLog persists recordings across instances and replays them back',
   )
 
   assert.deepEqual(replayed, { id: 1, name: 'user-1' })
+})
+
+test('the abstract EffectLog reports its methods as not implemented', async () => {
+  const log = new EffectLog()
+  await assert.rejects(() => log.record({}), /EffectLog.record\(\) is not implemented/)
+  await assert.rejects(() => log.replayNext('x'), /EffectLog.replayNext\(\) is not implemented/)
+})
+
+test('MemoryEffectLog serializes to its recorded entries', async () => {
+  const log = new MemoryEffectLog()
+  await log.record({ name: 'fetchUser', args: [1], result: 'Ada' })
+  assert.deepEqual(JSON.parse(JSON.stringify(log)), [{ name: 'fetchUser', args: [1], result: 'Ada' }])
+})
+
+test('FileEffectLog reports when no recorded call is left to replay', async () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jojo-effect-log-')), 'nested', 'log.json')
+  const log = new FileEffectLog(file)
+  await log.record({ name: 'fetchUser', args: [1], result: 'Ada' })
+
+  assert.deepEqual(await log.replayNext('fetchUser'), { name: 'fetchUser', args: [1], result: 'Ada' })
+  await assert.rejects(() => log.replayNext('fetchUser'), /No recorded call left to replay for effect "fetchUser"/)
 })
