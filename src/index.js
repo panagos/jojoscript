@@ -26,6 +26,11 @@ export {
 } from './pipeline-ir.js'
 
 export {
+  explainPipelines,
+  renderExplanationText
+} from './pipeline-explain.js'
+
+export {
   transformEffectDeclarations,
   transformHandleBlocks,
   findEffectDeclarations,
